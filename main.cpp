@@ -5,6 +5,9 @@
 
 #include "mbed.h"
 
+PinName sensorClockPin = p9;
+PinName sensorDataPin = p10;
+
 class SensorInterruptHandler
 {
 public:
@@ -55,8 +58,10 @@ enum SensorChannel : uint8_t
 
 int main()
 {
+    BufferedSerial pc(USBTX, USBRX, 115200);
+
     EventFlags sensorFlags;
-    SensorInterruptHandler sensorInterrupt(p10, p9, sensorFlags);
+    SensorInterruptHandler sensorInterrupt(sensorClockPin, sensorDataPin, sensorFlags);
 
     while (true)
     {
@@ -72,22 +77,31 @@ int main()
             switch (rawChannel)
             {
             case VOLTAGE_LEVEL:
+                printf("Voltage level: %d\n", data);
                 break;
             case FX:
+                printf("Fx: %d\n", data);
                 break;
             case FY:
+                printf("Fy: %d\n", data);
                 break;
             case FZ:
+                printf("Fz: %d\n", data);
                 break;
             case MX:
+                printf("Mx: %d\n", data);
                 break;
             case MY:
+                printf("My: %d\n", data);
                 break;
             case MZ:
+                printf("Mz: %d\n", data);
                 break;
             case CALIBRATION:
+                printf("Calibration: %d\n", data);
                 break;
             default:
+                printf("Unknown channel: %d\n", data);
                 break;
             }
         }
