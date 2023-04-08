@@ -65,8 +65,9 @@ int main()
         if (raw >> 31 == 0) // no error, see osFlagsError otherwise
         {
             raw &= 0x000FFFFF; // 20 bits
-            uint8_t rawChannel = raw >> 16;
-            uint16_t rawData = raw & 0x0000FFFF;
+            uint8_t rawChannel = raw >> 16; // 4 MSB
+            uint16_t rawData = raw & 0x0000FFFF; // two's complement representation of a signed 16-bit number
+            int16_t data = static_cast<int16_t>(rawData);
 
             switch (rawChannel)
             {
