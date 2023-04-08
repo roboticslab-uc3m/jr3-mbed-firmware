@@ -50,8 +50,7 @@ enum SensorChannel : uint8_t
     VOLTAGE_LEVEL = 0,
     FX, FY, FZ,
     MX, MY, MZ,
-    CALIBRATION,
-    INVALID
+    CALIBRATION
 };
 
 int main()
