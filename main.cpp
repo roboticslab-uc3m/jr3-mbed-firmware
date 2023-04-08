@@ -29,12 +29,14 @@ private:
             flags.set(1 << index);
         }
 
-        if (++index == HIGHEST_INDEX)
+        if (index == 0)
         {
             // signal the blocked thread to resume execution
             flags.set(1 << HIGHEST_INDEX);
-            index = 0;
+            index = HIGHEST_INDEX;
         }
+
+        index--;
     }
 
     InterruptIn interrupt;
@@ -63,7 +65,31 @@ int main()
 
         if (raw >> 31 == 0) // no error, see osFlagsError otherwise
         {
-            ;
+            raw &= 0x000FFFFF; // 20 bits
+            uint8_t rawChannel = raw >> 16;
+            uint16_t rawData = raw & 0x0000FFFF;
+
+            switch (rawChannel)
+            {
+            case VOLTAGE_LEVEL:
+                break;
+            case FX:
+                break;
+            case FY:
+                break;
+            case FZ:
+                break;
+            case MX:
+                break;
+            case MY:
+                break;
+            case MZ:
+                break;
+            case CALIBRATION:
+                break;
+            default:
+                break;
+            }
         }
     }
 }
