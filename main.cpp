@@ -15,7 +15,7 @@ public:
         : interrupt(clockPin),
           data(dataPin),
           flags(_flags),
-          index(0)
+          index(HIGHEST_INDEX)
     {
         interrupt.rise(callback(this, &SensorInterruptHandler::accept));
     }
@@ -25,17 +25,15 @@ public:
 private:
     void accept()
     {
-        unsigned int value = data.read();
-
-        if (value)
+        if (data)
         {
-            flags.set(1 << index);
+            flags.set(1UL << index);
         }
 
         if (index == 0)
         {
             // signal the blocked thread to resume execution
-            flags.set(1 << HIGHEST_INDEX);
+            flags.set(1UL << HIGHEST_INDEX);
             index = HIGHEST_INDEX;
         }
 
@@ -58,14 +56,14 @@ enum SensorChannel : uint8_t
 
 int main()
 {
-    BufferedSerial pc(USBTX, USBRX, 115200);
-
     EventFlags sensorFlags;
     SensorInterruptHandler sensorInterrupt(sensorClockPin, sensorDataPin, sensorFlags);
 
+    uint32_t raw;
+
     while (true)
     {
-        uint32_t raw = sensorFlags.wait_all(1 << SensorInterruptHandler::HIGHEST_INDEX);
+        raw = sensorFlags.wait_all(1UL << SensorInterruptHandler::HIGHEST_INDEX);
 
         if (raw >> 31 == 0) // no error, see osFlagsError otherwise
         {
