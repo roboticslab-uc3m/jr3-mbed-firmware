@@ -12,13 +12,17 @@ class SensorInterruptHandler
 {
 public:
     SensorInterruptHandler(PinName clockPin, PinName dataPin, Thread & _thread)
-        : interrupt(clockPin),
+        : clock(clockPin),
           data(dataPin),
           thread(_thread),
+          isTransmittingFrame(false),
+          isStartPulse(false),
           index(FRAME_LENGTH),
           buffer(SIGNAL_BIT)
     {
-        interrupt.rise(callback(this, &SensorInterruptHandler::onClockRisingEdge));
+        clock.rise(callback(this, &SensorInterruptHandler::onClockRisingEdge));
+        data.fall(callback(this, &SensorInterruptHandler::onDataFallingEdge));
+        data.rise(callback(this, &SensorInterruptHandler::onDataRisingEdge));
     }
 
     static const unsigned FRAME_LENGTH = 20;
@@ -27,19 +31,48 @@ public:
 private:
     void onClockRisingEdge()
     {
-        buffer |= data << --index;
-
-        if (index == 0)
+        if (isTransmittingFrame)
         {
-            thread.flags_set(buffer);
-            index = FRAME_LENGTH;
-            buffer = SIGNAL_BIT;
+            buffer |= data << --index;
+
+            if (index == 0)
+            {
+                isTransmittingFrame = false;
+                thread.flags_set(buffer);
+                index = FRAME_LENGTH;
+                buffer = SIGNAL_BIT;
+            }
+        }
+        else if (isStartPulse)
+        {
+            // invalidate, we are amid a frame transmission (which is not being accounted)
+            isStartPulse = false;
         }
     }
 
-    InterruptIn interrupt;
-    DigitalIn data;
+    void onDataFallingEdge()
+    {
+        if (!isTransmittingFrame && clock == 1)
+        {
+            isStartPulse = true;
+        }
+    }
+
+    void onDataRisingEdge()
+    {
+        if (!isTransmittingFrame && isStartPulse && clock == 1)
+        {
+            isStartPulse = false;
+            isTransmittingFrame = true;
+        }
+    }
+
+    InterruptIn clock;
+    InterruptIn data;
     Thread & thread;
+
+    volatile bool isTransmittingFrame;
+    volatile bool isStartPulse; // pulse high-low-high on DATA while DLCK is high
     volatile int index;
     volatile uint32_t buffer;
 };
