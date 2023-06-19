@@ -5,33 +5,28 @@
 
 #include "mbed.h"
 
-// Semaphore sem(1);
-// Thread thread;
+#include "LPC17xx.h"
 
-class Counter {
-public:
-    Counter(PinName clockPin, PinName dataPin)
-        : _clockInterrupt(clockPin),
-          _dataInterrupt(dataPin),
-          isTransmittingFrame(false),
-          isStartPulse(false),
-          clockState(true),
-          dataState(true),
-          index(FRAME_LENGTH),
-          buffer(SIGNAL_BIT),
-          frames(0)
-    {
-        _clockInterrupt.rise(callback(this, &Counter::clockRise));
-        _clockInterrupt.fall(callback(this, &Counter::clockFall));
-        _dataInterrupt.rise(callback(this, &Counter::dataRise));
-        _dataInterrupt.fall(callback(this, &Counter::dataFall));
-        // sem.acquire();
-    }
+static const unsigned FRAME_LENGTH = 20;
+static const uint32_t SIGNAL_BIT = 0x10000000U; // don't use 0x80000000U as it is `osFlagsError`
 
-    static const unsigned FRAME_LENGTH = 20;
-    static const uint32_t SIGNAL_BIT = 0x10000000U; // don't use 0x80000000U as it is `osFlagsError`
+volatile unsigned int _countClock;
+volatile unsigned int _countData;
 
-    void clockRise()
+volatile bool isTransmittingFrame = false;
+volatile bool isStartPulse = false; // pulse high-low-high on DATA while DLCK is high
+volatile bool clockState = true;
+volatile bool dataState = true;
+volatile unsigned int index = FRAME_LENGTH;
+volatile uint32_t buffer = SIGNAL_BIT;
+volatile unsigned int frames = 0;
+
+extern "C" void EINT3_IRQHandler(void)
+{
+    // Clear the interrupt.
+    LPC_GPIOINT->IO0IntClr = ~((uint32_t) 0);
+
+    if ((LPC_GPIOINT->IO0IntStatR & (1 << 0)) == (1 << 0))
     {
         _countClock++;
 
@@ -39,19 +34,7 @@ public:
 
         if (isTransmittingFrame)
         {
-            // index--;
-
-            // if (!dataState)
-            // {
-            //     buffer = buffer | (1UL << index);
-            // }
-            // else
-            // {
-            //     buffer = buffer | ((index % 2 == 0) << index);
-            // }
-
             buffer |= (dataState ? 1 : 0) << --index;
-            // buffer |= (index % 2) << --index;
 
             if (index == 0)
             {
@@ -68,18 +51,11 @@ public:
             isStartPulse = false;
         }
     }
-
-    void clockFall()
+    else if ((LPC_GPIOINT->IO0IntStatF & (1 << 0)) == (1 << 0))
     {
         clockState = false;
     }
-
-    int readClock()
-    {
-        return _countClock;
-    }
-
-    void dataRise()
+    else if ((LPC_GPIOINT->IO0IntStatR & (1 << 1)) == (1 << 1))
     {
         _countData++;
 
@@ -92,8 +68,7 @@ public:
             buffer = SIGNAL_BIT;
         }
     }
-
-    void dataFall()
+    else if ((LPC_GPIOINT->IO0IntStatF & (1 << 1)) == (1 << 1))
     {
         dataState = false;
 
@@ -102,64 +77,46 @@ public:
             isStartPulse = true;
         }
     }
-
-    int readData()
-    {
-        return _countData;
-    }
-
-    uint32_t readBuffer() const
-    { return buffer; }
-
-    int getFrames() const
-    { return frames; }
-
-private:
-    InterruptIn _clockInterrupt;
-    InterruptIn _dataInterrupt;
-
-    volatile int _countClock;
-    volatile int _countData;
-
-    volatile bool isTransmittingFrame;
-    volatile bool isStartPulse; // pulse high-low-high on DATA while DLCK is high
-    volatile bool clockState;
-    volatile bool dataState;
-    volatile int index;
-    volatile uint32_t buffer;
-    volatile int frames;
-};
-
-Counter counter(p9, p10);
-
-void sensorWorker()
-{
-    uint32_t raw;
-
-    while (true)
-    {
-        raw = ThisThread::flags_wait_all(Counter::SIGNAL_BIT) & 0x000FFFFF; // 20 bits
-
-        uint8_t rawChannel = raw >> 16; // 4 MSB
-        uint16_t rawData = raw & 0x0000FFFF; // two's complement representation of a signed 16-bit number
-        int16_t data = static_cast<int16_t>(rawData);
-
-        // printf("0x%08x 0x%08x 0x%02x\n", rawData, data, rawChannel);
-        printf("Count so far: %d %d 0x%08X\n", counter.readClock(), counter.readData(), counter.readBuffer());
-    }
 }
+
+class Counter
+{
+public:
+    Counter(unsigned int clockPin, unsigned int dataPin)
+    {
+        __disable_irq();
+
+        NVIC_DisableIRQ(EINT3_IRQn);
+
+        // Power up GPIO.
+        // LPC_SC->PCONP |= (1 << 15);
+
+        // GPIO P0.0 and P0.1 as input.
+        LPC_PINCON->PINSEL0 &= ~((1 << 3) | (1 << 2) | (1 << 1) | (1 << 0));
+        // LPC_PINCON->PINMODE1 &= ~(0x3 << 0);
+        // LPC_PINCON->PINMODE1 |= (0x3 << 0);
+        LPC_GPIO0->FIODIR &= ~((1 << 1) | (1 << 0));
+
+        LPC_GPIOINT->IO0IntEnR |= ((1 << 1) | (1 << 0));
+        LPC_GPIOINT->IO0IntEnF |= ((1 << 1) | (1 << 0));
+
+        LPC_SC->EXTINT = 1;
+
+        NVIC_EnableIRQ(EINT3_IRQn);
+
+        __enable_irq();
+    }
+};
 
 int main()
 {
-    // thread.start(callback(sensorWorker));
+    Counter counter(9, 10);
 
-    while (1)
+    while (true)
     {
-        // printf("loop\n");
-        // ThisThread::sleep_for(1000);
-        // sem.acquire();
-        printf("Count so far: cticks=%d dticks=%d frames=%d data=0x%08X\n", counter.readClock(), counter.readData(), counter.getFrames(), counter.readBuffer());
+        printf("Count so far: cticks=%d dticks=%d frames=%d data=0x%08X\n", _countClock, _countData, frames, buffer);
         ThisThread::sleep_for(2000);
-        // sem.acquire();
     }
+
+    return 0;
 }
