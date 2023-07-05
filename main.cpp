@@ -61,8 +61,8 @@ int main()
     FastIn<p9> clock;
     FastIn<p10> data;
 
-    bool clkLevel, dataLevel;
-    bool clockState = true;
+    volatile bool clkLevel, dataLevel;
+    volatile bool clockState = true;
 
     const unsigned int BLARG = 500;
     int idleStorage[BLARG];
@@ -70,7 +70,7 @@ int main()
     int idleCtr2 = 1;
     int idleCtr3 = 0;
 
-    const static int BLORG = 5000;
+    const static int BLORG = 500;
     bool storage[BLORG];
     bool storage2[BLORG];
     int i = 0;
@@ -95,72 +95,115 @@ int main()
         // storage[i] = pins & 0x00000001;
         // storage2[i] = pins & 0x00000002;
 
-        storage[i] = clkLevel = clock.read();
-        storage2[i] = data.read();
+        clkLevel = clock.read();
+        dataLevel = data.read();
 
-        i++;
-
-        if (clkLevel)
+        if (clkLevel != clockState)
         {
-            idle++;
-        }
-        else
-        {
+            clockState = clkLevel;
             idle = 0;
-        }
 
-        if (idle == 10)
-        {
-            if (i > 45)
+            if (clkLevel)
             {
-                lastBit = true;
-                index = 20;
-                frame = 0;
+                storage2[i++] = dataLevel;
 
-                for (j = 0; j < i - 9; j++)
+                if (i == 20)
                 {
-                    if (storage[j] != lastBit)
+                    frame = 0;
+
+                    for (j = 19; j >= 0; j--)
                     {
-                        lastBit = storage[j];
-
-                        if (lastBit)
-                        {
-                            frame |= (storage2[j] ? 1 : 0) << --index;
-
-                            if (index < 0)
-                            {
-                                break;
-                            }
-                        }
+                        frame |= (storage2[j] ? 1 : 0) << j;
                     }
-                }
 
-                if (index == 0)
-                {
                     frames[frame_n++] = frame;
-                    // pc.printf("0x%08x\t", frame);
+                    // pc.printf("0x%08x\n", frame);
 
-                    // for (j = 0; j < i - 9; j++)
-                    // {
-                    //     pc.printf("%d", storage2[j]);
-                    // }
-
-                    // pc.printf("\n");
-                }
-
-                if (frame_n == FRAMES)
-                {
-                    for (j = 0; j < FRAMES; j++)
+                    if (frame_n == FRAMES)
                     {
-                        pc.printf("[%03d] 0x%08x\n", j + 1, frames[j]);
+                        for (j = 0; j < FRAMES; j++)
+                        {
+                            pc.printf("[%03d] 0x%08x\n", j + 1, frames[j]);
+                        }
+
+                        frame_n = 0;
                     }
 
-                    frame_n = 0;
+                    i = 0;
                 }
             }
-
-            i = idle = 0;
         }
+        else if (clkLevel)
+        {
+            idle++;
+
+            if (idle == 10)
+            {
+                i = idle = 0;
+            }
+        }
+
+        // if (clkLevel)
+        // {
+        //     idle++;
+        // }
+        // else
+        // {
+        //     idle = 0;
+        // }
+
+        // if (idle == 10)
+        // {
+        //     if (i > 45)
+        //     {
+        //         lastBit = true;
+        //         index = 20;
+        //         frame = 0;
+
+        //         for (j = 0; j < i - 9; j++)
+        //         {
+        //             if (storage[j] != lastBit)
+        //             {
+        //                 lastBit = storage[j];
+
+        //                 if (lastBit)
+        //                 {
+        //                     frame |= (storage2[j] ? 1 : 0) << --index;
+
+        //                     if (index < 0)
+        //                     {
+        //                         break;
+        //                     }
+        //                 }
+        //             }
+        //         }
+
+        //         if (index == 0)
+        //         {
+        //             frames[frame_n++] = frame;
+        //             pc.printf("0x%08x\t", frame);
+
+        //             for (j = 0; j < i - 9; j++)
+        //             {
+        //                 pc.printf("%d", storage2[j]);
+        //             }
+
+        //             pc.printf("\n");
+        //         }
+
+        //         if (frame_n == FRAMES)
+        //         {
+        //             for (j = 0; j < FRAMES; j++)
+        //             {
+        //                 pc.printf("[%03d] 0x%08x\n", j + 1, frames[j]);
+        //             }
+
+        //             frame_n = 0;
+        //         }
+        //     }
+
+        //     i = idle = 0;
+        // }
 
         // if (idle == 10)
         // {
