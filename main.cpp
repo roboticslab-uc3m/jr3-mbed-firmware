@@ -1,385 +1,250 @@
 #include "mbed.h"
-#include "LPC17xx.h"
+#include "FastIO.h"
 
-// FastIn<p9> clk;
-// FastIn<p10> data;
-
-// volatile bool stateClock = true;
-// volatile bool stateData = true;
-
-// volatile int clockTicks = 0;
-// volatile int dataTicks = 0;
-
-#define CLOCK_PIN p9
-#define DATA_PIN p10
-
-// Semaphore sem(1);
-
-class SensorFrameHandler
+void setSystemFrequency(int clkDiv, int M, int N)
 {
-public:
-    // SensorFrameHandler(Thread & _thread)
-    SensorFrameHandler(Serial & pc)
-        :
-        //   thread(_thread),
-        //   port(Port0, 0x00000003),
-          pc(pc),
-          pp(Port0, 0x00000003),
-          clockTickCounter(0),
-          dataTickCounter(0),
-          frameCounter(0),
-          isTransmittingFrame(false),
-          isStartPulse(false),
-          clockState(true),
-          dataState(true),
-          index(FRAME_LENGTH),
-          buffer(SIGNAL_BIT)
-    {
-        // sem.acquire();
-    }
+    // see M/N values at https://os.mbed.com/users/no2chem/notebook/mbed-clock-control--benchmarks/
+    // this code was mostly borrowed from https://os.mbed.com/forum/mbed/topic/229/?page=2#comment-8566
+    // see also https://os.mbed.com/users/no2chem/code/ClockControl//file/b5d3bd64d2dc/main.cpp/
+    // manual entry: Chapter 4: LPC17xx CLocking and power control
 
-    static const unsigned int STORAGE_SIZE = 2000;
-    static const unsigned FRAME_LENGTH = 20;
-    static const uint32_t SIGNAL_BIT = 0x10000000U; // don't use 0x80000000U as it is `osFlagsError`
+    // current clock variables:
+    // Fin = 12000000; // 12 MHz XTAL
+    // M = (LPC_SC->PLL0CFG & 0xFFFF) + 1;
+    // N = (LPC_SC->PLL0CFG >> 16) + 1;
+    // CCLKDIV = LPC_SC->CCLKCFG + 1;
+    // Fcco = (2 * M * Fin) / N;
+    // CCLK = Fcco / CCLKDIV; // this should yield 96 MHz
 
-    void worker()
-    {
-        bool clkLevel, dataLevel;
-        int pins;
-        // int storageIndex = 0;
-        // int counter = 0;
-        // int counter2 = 0;
-        // const int timeout = 50;
-        // int resets = 0;
-        bool clockValues[STORAGE_SIZE];
-        bool dataValues[STORAGE_SIZE];
-        int valueCounter = 0;
-        // int pins;
-        bool wasFirstRead = false;
-        const int offset = 100000;
-        int offsetCount = 0;
+    LPC_SC->PLL0CON   = 0x00; // PLL0 Disable
+    LPC_SC->PLL0FEED  = 0xAA;
+    LPC_SC->PLL0FEED  = 0x55;
 
-        while (true)
-        {
-            // dataLevel = data.read() == 1;
-            // clkLevel = clk.read() == 1;
-            pins = pp.read();
-            dataLevel = pins & 0x00000002;
-            clkLevel = pins & 0x00000001;
+    LPC_SC->CCLKCFG   = clkDiv - 1; // Select Clock Divisor
+    LPC_SC->PLL0CFG   = (((unsigned int)N - 1) << 16) | (M - 1); // configure PLL0
+    LPC_SC->PLL0FEED  = 0xAA;
 
-            // if (offsetCount++ < offset)
-            // {
-            //     continue;
-            // }
+    LPC_SC->PLL0CON   = 0x01; // PLL0 Enable
+    LPC_SC->PLL0FEED  = 0xAA;
+    LPC_SC->PLL0FEED  = 0x55;
 
-            // pc.printf("SystemCoreClock = %d Hz\n", SystemCoreClock);
+    while (!(LPC_SC->PLL0STAT & (1<<26))) {} // Wait for PLOCK0
 
-            // if (!wasFirstRead)
-            // {
-            //     if (!clkLevel)
-            //     {
-            //         continue;
-            //     }
-            //     else
-            //     {
-            //         wasFirstRead = true;
-            //     }
-            // }
+    LPC_SC->PLL0CON   = 0x03; // PLL0 Enable & Connect
+    LPC_SC->PLL0FEED  = 0xAA;
+    LPC_SC->PLL0FEED  = 0x55;
 
-            // dataLevel = ((((LPC_GPIO_TypeDef*)(p10 & ~0x1F))->FIOPIN & data.container.mask));
-            // clkLevel = ((((LPC_GPIO_TypeDef*)(p9 & ~0x1F))->FIOPIN & clk.container.mask));
+    while (!(LPC_SC->PLL0STAT & ((1<<25) | (1<<24)))) {} // Wait for PLLC0_STAT & PLLE0_STAT
 
-            // pins = port.read();
-            // clkLevel = pins & 0x00000001;
-            // dataLevel = pins & 0x00000002;
+    SystemCoreClockUpdate(); // updates the SystemCoreClock global variable, should be 128 MHz now
 
-            clockValues[valueCounter] = clkLevel;
-            dataValues[valueCounter] = dataLevel;
-
-            if (valueCounter == STORAGE_SIZE)
-            {
-                pc.printf("[DCLK] ");
-
-                for (int i = 0; i < STORAGE_SIZE; i++)
-                {
-                    pc.printf("%d", clockValues[i]);
-                }
-
-                pc.printf("\n[DATA] ");
-
-                for (int i = 0; i < STORAGE_SIZE; i++)
-                {
-                    pc.printf("%d", dataValues[i]);
-                }
-
-                pc.printf("\n");
-
-                valueCounter = 0;
-            }
-
-            valueCounter++;
-
-            // if (clkLevel && clockState)
-            // {
-            //     counter2++;
-
-            //     if (++counter == timeout)
-            //     {
-            //         counter = 0;
-            //         isTransmittingFrame = false;
-            //     }
-            // }
-            // else
-            // {
-            //     counter = 0;
-
-            //     if (clkLevel) // clock level high
-            //     {
-            //         if (!clockState) // clock rising edge
-            //         {
-            //             clockTickCounter++;
-            //             clockState = true;
-
-            //             if (isTransmittingFrame)
-            //             {
-            //                 buffer |= (dataLevel ? 1 : 0) << --index;
-
-            //                 if (index == 0)
-            //                 {
-            //                     storage[storageIndex++] = buffer;
-            //                     frameCounter++;
-
-            //                     if (storageIndex == STORAGE_SIZE)
-            //                     {
-            //                         printf("cticks = %lu, dticks = %lu, frames = %lu, resets = %d, counter2 = %d\n",
-            //                                clockTickCounter, dataTickCounter, frameCounter, resets, counter2);
-
-            //                         for (int i = 0; i < STORAGE_SIZE; i++)
-            //                         {
-            //                             printf("[%03d] 0x%08x\n", i + 1, storage[i] & 0x000FFFFF);
-            //                         }
-
-            //                         storageIndex = 0;
-            //                         resets = 0;
-            //                     }
-
-            //                     isTransmittingFrame = false;
-            //                     // thread.flags_set(buffer);
-            //                 }
-            //             }
-
-			// 			if (isStartPulse) // isTransmittingFrame is already false
-            //             {
-            //                 // invalidate, we are amid a frame transmission (which is not being accounted)
-            //                 isTransmittingFrame = isStartPulse = false;
-            //             }
-            //         }
-            //     }
-            //     else // clock level low
-            //     {
-            //         if (clockState) // clock falling edge
-            //         {
-            //             clockState = false;
-
-            //             if (isStartPulse)
-            //             {
-            //                 // printf("resets = %d, isTransmittingFrame = %s\n", resets, isTransmittingFrame ? "true" : "false");
-            //                 isTransmittingFrame = isStartPulse = false; // invalidate
-            //                 resets++;
-            //             }
-            //         }
-            //     }
-            // }
-
-            // if (dataLevel) // data level high
-            // {
-            //     if (!dataState) // data rising edge
-            //     {
-            //         dataTickCounter++;
-            //         dataState = true;
-
-            //         if (!isTransmittingFrame && isStartPulse && clkLevel)
-            //         {
-            //             isStartPulse = false;
-            //             isTransmittingFrame = true;
-			// 			index = FRAME_LENGTH;
-            //             buffer = SIGNAL_BIT;
-            //             // counter = 0; // FIXME: is this enough?
-            //         }
-            //     }
-            // }
-            // else // data level low
-            // {
-            //     if (dataState) // data falling edge
-            //     {
-            //         dataState = false;
-
-            //         if (!isTransmittingFrame && clkLevel)
-            //         {
-            //             isStartPulse = true;
-            //         }
-            //     }
-            // }
-        }
-    }
-
-// private:
-    Serial & pc;
-    // FastIn<p9> clk;
-    // FastIn<p10> data;
-    PortIn pp;
-    // PortIn port;
-
-    // Thread & thread;
-
-    volatile unsigned long clockTickCounter;
-    volatile unsigned long dataTickCounter;
-    volatile unsigned long frameCounter;
-    volatile bool isTransmittingFrame;
-    volatile bool isStartPulse; // pulse high-low-high on DATA while DLCK is high
-    volatile bool clockState;
-    volatile bool dataState;
-    volatile int index;
-    volatile uint32_t buffer;
-    volatile uint32_t storage[STORAGE_SIZE];
-};
-
-// void worker()
-// {
-//     uint32_t raw;
-
-//     while (true)
-//     {
-//         raw = ThisThread::flags_wait_all(SensorFrameHandler::SIGNAL_BIT) & 0x000FFFFF; // 20 bits
-
-//         uint8_t rawChannel = raw >> 16; // 4 MSB
-//         uint16_t rawData = raw & 0x0000FFFF; // two's complement representation of a signed 16-bit number
-
-//         int16_t data = static_cast<int16_t>(rawData);
-
-//         printf("0x%08x 0x%08x 0x%02x\n", rawData, data, rawChannel);
-//     }
-// }
+    // this is how SystemCoreClock is obtained:
+    // SystemCoreClock = (Fin * 2 /
+    //                              (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1) *
+    //                              ((LPC_SC->PLL0STAT & 0x7FFF) + 1) /
+    //                              ((LPC_SC->CCLKCFG & 0xFF) + 1));
+}
 
 int main()
 {
-    printf("start\n");
-
     wait(5);
 
-    const int Fin = 12000000; // 12MHz XTAL
+    // overclock CPU from 96 MHz to 128 MHz
+    setSystemFrequency(3, 16, 1);
 
-    printf("PLL Registers:\n");
-    printf(" - PLL0CFG = 0x%08X\n", LPC_SC->PLL0CFG);
-    printf(" - CLKCFG  = 0x%08X\n", LPC_SC->CCLKCFG);
-
-    int M = (LPC_SC->PLL0CFG & 0xFFFF) + 1;
-    int N = (LPC_SC->PLL0CFG >> 16) + 1;
-    int CCLKDIV = LPC_SC->CCLKCFG + 1;
-
-    printf("Clock Variables:\n");
-    printf(" - Fin = %d\n", Fin);
-    printf(" - M   = %d\n", M);
-    printf(" - N   = %d\n", N);
-    printf(" - CCLKDIV = %d\n", CCLKDIV);
-
-    int Fcco = (2 * M * Fin) / N;
-    int CCLK = Fcco / CCLKDIV;
-
-    printf("Clock Results:\n");
-    printf(" - Fcco = %d\n", Fcco);
-    printf(" - CCLK = %d\n", CCLK);
-
-    printf("Initialising ...\n");
-    printf("\n");
-    LPC_SC->PLL0CON   = 0x00;             /* PLL0 Disable                    */
-    LPC_SC->PLL0FEED  = 0xAA;
-    LPC_SC->PLL0FEED  = 0x55;
-
-    // LPC_SC->CCLKCFG   = 0x00000003;       /* Select Clock Divisor = 4        */
-    // LPC_SC->CCLKCFG   = 0x00000001;       /* Select Clock Divisor = 2        */
-    LPC_SC->CCLKCFG   = 0x00000002;       /* Select Clock Divisor = 3        */
-    // LPC_SC->PLL0CFG   = 0x00020031;       /* configure PLL0                  */
-    // LPC_SC->PLL0CFG   = 0x00000009;       /* configure PLL0                  */
-    LPC_SC->PLL0CFG   = 0x0000000F;       /* configure PLL0                  */
-    LPC_SC->PLL0FEED  = 0xAA;             /* divide by 3 then multiply by 50 */
-    LPC_SC->PLL0FEED  = 0x55;             /* PLL0 frequency = 400,000,000    */
-
-    LPC_SC->PLL0CON   = 0x01;             /* PLL0 Enable                     */
-    LPC_SC->PLL0FEED  = 0xAA;
-    LPC_SC->PLL0FEED  = 0x55;
-    // printf("waiting ...\n");
-    while (!(LPC_SC->PLL0STAT & (1<<26)));/* Wait for PLOCK0                 */
-
-    // setSystemFrequency(0x3, 0x1, 15, 1);
-
-    LPC_SC->PLL0CON   = 0x03;             /* PLL0 Enable & Connect           */
-    LPC_SC->PLL0FEED  = 0xAA;
-    LPC_SC->PLL0FEED  = 0x55;
-    // printf("waiting ...\n");
-    while (!(LPC_SC->PLL0STAT & ((1<<25) | (1<<24))));/* Wait for PLLC0_STAT & PLLE0_STAT */
-
-    SystemCoreClockUpdate();
     Serial pc(USBTX, USBRX); // tx, rx
     pc.printf("System clock = %d\n", SystemCoreClock);
 
-    // setSystemFrequency(0x3, 0x1, 15, 1);
-
-    // printf("a\n");
-    // ThisThread::sleep_for(5s);
-    // printf("a\n");
-
-    // printf("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\n");
-    // printf("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\n");
-    // printf("cccccccccccccccccccccccccccccccccccccccccc\n");
-    // printf("dddddddddddddddddddddddddddddddddddddddddd\n");
-
-    int test = (Fin * 2 /
-                      (((LPC_SC->PLL0STAT >> 16) & 0xFF) + 1) *
-                      ((LPC_SC->PLL0STAT & 0x7FFF) + 1)  /
-                      ((LPC_SC->CCLKCFG & 0xFF)+ 1));
-    pc.printf("System clock = %d\n", test);
-
-    // SystemCoreClockUpdate();
-    // pc.printf("System clock = %d\n", SystemCoreClock);
-
-    pc.printf("PLL Registers:\n");
-    pc.printf(" - PLL0CFG = 0x%08X\n", LPC_SC->PLL0CFG);
-    pc.printf(" - CLKCFG  = 0x%08X\n", LPC_SC->CCLKCFG);
-
-    M = (LPC_SC->PLL0CFG & 0xFFFF) + 1;
-    N = (LPC_SC->PLL0CFG >> 16) + 1;
-    CCLKDIV = LPC_SC->CCLKCFG + 1;
-
-    pc.printf("Clock Variables:\n");
-    pc.printf(" - Fin = %d\n", Fin);
-    pc.printf(" - M   = %d\n", M);
-    pc.printf(" - N   = %d\n", N);
-    pc.printf(" - CCLKDIV = %d\n", CCLKDIV);
-
-    Fcco = (2 * M * Fin) / N;
-    CCLK = Fcco / CCLKDIV;
-
-    pc.printf("Clock Results:\n");
-    pc.printf(" - Fcco = %d\n", Fcco);
-    pc.printf(" - CCLK = %d\n", CCLK);
-
-    // Thread thread;
-    // SensorFrameHandler sensor(thread);
-    // Serial pc(USBTX, USBRX); // tx, rx
-    SensorFrameHandler sensor(pc);
-
-    // thread.start(callback(&worker));
-    // thread.start(callback(&sensor, &SensorFrameHandler::worker));
-
-    pc.printf("worker start\n");
-
     wait(5);
-    sensor.worker();
 
-    // while (true)
-    // {
-        pc.printf("cticks = %lu, dticks = %lu, frames = %lu\n", sensor.clockTickCounter, sensor.dataTickCounter, sensor.frameCounter);
-    //     ThisThread::sleep_for(1000);
-    // }
+    // PortIn port(Port0, 0x00000003);
+    FastIn<p9> clock;
+    FastIn<p10> data;
+
+    const unsigned int STORAGE_SIZE = 100;
+    const unsigned int FRAME_LENGTH = 20;
+    const unsigned int CLOCK_TIMEOUT = 5;
+    const uint32_t SIGNAL_BIT = 0x10000000U; // don't use 0x80000000U as it is `osFlagsError`
+
+    unsigned long clockTickCounter = 0;
+    // unsigned long dataTickCounter = 0;
+    unsigned long frameCounter = 0;
+
+    bool isTransmittingFrame = false;
+    bool isStartPulse = false; // pulse high-low-high on DATA while DLCK is high
+    bool clockState = true;
+    bool dataState = true;
+
+    int index = FRAME_LENGTH;
+    uint32_t buffer = SIGNAL_BIT;
+    bool buffBool[FRAME_LENGTH];
+    uint32_t storage[STORAGE_SIZE];
+
+    bool clkLevel, dataLevel;
+
+    int pins = 0;
+    int storageIndex = 0;
+    int idleCounter = 0;
+    // int resets = 0;
+
+    int idleStorage[50];
+    int idleCtr2 = 0;
+    int idleCtr3 = 0;
+
+    // bool wasFirstRead = false;
+
+    while (true)
+    {
+        // pins = port.read();
+        // dataLevel = pins & 0x00000002;
+        // clkLevel = pins & 0x00000001;
+        clkLevel = clock.read();
+        dataLevel = data.read();
+
+        // if (!wasFirstRead)
+        // {
+        //     if (!clkLevel)
+        //     {
+        //         continue;
+        //     }
+        //     else
+        //     {
+        //         wasFirstRead = true;
+        //     }
+        // }
+
+        // if (clkLevel && clockState)
+        // {
+        //     // idleCtr2++;
+
+        //     if (++idleCounter == CLOCK_TIMEOUT)
+        //     {
+        //         // pc.printf("idle\n");
+        //         idleCounter = 0;
+        //         isTransmittingFrame = false;
+
+        //         // if (!clkLevel)
+        //         // {
+        //         //     // pc.printf("idle and low level\n");
+        //         //     continue; // disregard data readings
+        //         // }
+        //     }
+        // }
+        // else
+        {
+            // idleStorage[idleCtr3++] = idleCtr2;
+            // idleCtr2 = 0;
+
+            // if (idleCtr3 == 50)
+            // {
+            //     for (int i = 0; i < 50; i++)
+            //     {
+            //         pc.printf("[%02d] %d\n", i, idleStorage[i]);
+            //     }
+
+            //     idleCtr3 = 0;
+            // }
+
+            // pc.printf("in clock read clause\n");
+            // idleCounter = 0;
+
+            if (clkLevel) // clock level high
+            {
+                if (!clockState) // clock rising edge
+                {
+                    // clockTickCounter++;
+                    clockState = true;
+
+                    if (isTransmittingFrame)
+                    {
+                        // pc.printf("reading %d\n", dataLevel);
+                        // buffer |= (dataLevel ? 1 : 0) << --index;
+                        buffBool[--index] = dataLevel;
+
+                        if (index == 0)
+                        {
+                            // pc.printf("read: 0x%08x\n", buffer);
+                            buffer = 0;
+
+                            for (int i = 0; i < FRAME_LENGTH; i++)
+                            {
+                                buffer |= (buffBool[i] ? 1 : 0) << i;
+                            }
+
+                            storage[storageIndex++] = buffer;
+
+                            frameCounter++;
+
+                            if (storageIndex == STORAGE_SIZE)
+                            {
+                                // pc.printf("clockTickCounter = %d\n", clockTickCounter);
+
+                                for (int i = 0; i < STORAGE_SIZE; i++)
+                                {
+                                    pc.printf("[%03d] 0x%08x\n", i + 1, storage[i] & 0x000FFFFF);
+                                }
+
+                                storageIndex = 0;
+                                // resets = 0;
+                            }
+
+                            isTransmittingFrame = false;
+                        }
+                    }
+                    else if (isStartPulse) // isTransmittingFrame is already false
+                    {
+                        // pc.printf("resetting flags A\n");
+                        // invalidate, we are amid a frame transmission (which is not being accounted)
+                        isTransmittingFrame = isStartPulse = false;
+                    }
+                }
+            }
+            else // clock level low
+            {
+                if (clockState) // clock falling edge
+                {
+                    clockState = false;
+
+                    if (isStartPulse)
+                    {
+                        // pc.printf("resetting flags B\n");
+                        isTransmittingFrame = isStartPulse = false; // invalidate
+                        // resets++;
+                    }
+                }
+            }
+        }
+
+        if (dataLevel) // data level high
+        {
+            if (!dataState) // data rising edge
+            {
+                // dataTickCounter++;
+                dataState = true;
+
+                if (!isTransmittingFrame && isStartPulse && clkLevel)
+                {
+                    // pc.printf("setting transmit flag to true\n");
+                    isStartPulse = false;
+                    isTransmittingFrame = true;
+                    index = FRAME_LENGTH;
+                    buffer = SIGNAL_BIT;
+                    // counter = 0; // FIXME: is this enough?
+                }
+            }
+        }
+        else // data level low
+        {
+            if (dataState) // data falling edge
+            {
+                dataState = false;
+
+                if (!isTransmittingFrame && clkLevel)
+                {
+                    // pc.printf("setting start pulse to true\n");
+                    isStartPulse = true;
+                }
+            }
+        }
+    }
 }
