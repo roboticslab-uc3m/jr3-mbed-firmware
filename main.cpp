@@ -1,5 +1,6 @@
 #include "mbed.h"
 #include "FastIO.h"
+#include <cstring>
 
 void setSystemFrequency(int clkDiv, int M, int N)
 {
@@ -50,19 +51,21 @@ int main()
     wait(5);
 
     // overclock CPU from 96 MHz to 128 MHz
-    setSystemFrequency(3, 16, 1);
+    // setSystemFrequency(3, 16, 1);
 
     Serial pc(USBTX, USBRX); // tx, rx
     pc.printf("System clock = %d\n", SystemCoreClock);
 
     wait(5);
 
+    pc.printf("ready\n");
+
     // PortIn port(Port0, 0x00000003);
     FastIn<p9> clock;
     FastIn<p10> data;
 
-    volatile bool clkLevel, dataLevel;
-    volatile bool clockState = true;
+    bool clkLevel, dataLevel;
+    bool clockState = true;
 
     const unsigned int BLARG = 500;
     int idleStorage[BLARG];
@@ -70,7 +73,7 @@ int main()
     int idleCtr2 = 1;
     int idleCtr3 = 0;
 
-    const static int BLORG = 500;
+    const static int BLORG = 1000;
     bool storage[BLORG];
     bool storage2[BLORG];
     int i = 0;
@@ -87,6 +90,15 @@ int main()
 
     int pins;
 
+    CAN can(p30, p29); // rd, td
+    can.frequency(1000000);
+    can.reset();
+
+    CANMessage msg;
+    msg.id = 0x01;
+
+    uint64_t msg_64 = 0;
+
     // bool wasFirstRead = false;
 
     while (true)
@@ -95,115 +107,75 @@ int main()
         // storage[i] = pins & 0x00000001;
         // storage2[i] = pins & 0x00000002;
 
-        clkLevel = clock.read();
-        dataLevel = data.read();
+        storage[i] = clkLevel = clock.read();
+        storage2[i] = data.read();
 
-        if (clkLevel != clockState)
+        i++;
+
+        if (clkLevel)
         {
-            clockState = clkLevel;
+            idle++;
+        }
+        else
+        {
             idle = 0;
+        }
 
-            if (clkLevel)
+        if (idle == 10)
+        {
+            if (i > 45)
             {
-                storage2[i++] = dataLevel;
+                lastBit = true;
+                index = 20;
+                frame = 0;
 
-                if (i == 20)
+                for (j = 0; j < i - 9; j++)
                 {
-                    frame = 0;
-
-                    for (j = 19; j >= 0; j--)
+                    if (storage[j] != lastBit)
                     {
-                        frame |= (storage2[j] ? 1 : 0) << j;
-                    }
+                        lastBit = storage[j];
 
+                        if (lastBit)
+                        {
+                            frame |= (storage2[j] ? 1 : 0) << --index;
+
+                            if (index < 0)
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (index == 0)
+                {
                     frames[frame_n++] = frame;
                     // pc.printf("0x%08x\n", frame);
 
-                    if (frame_n == FRAMES)
-                    {
-                        for (j = 0; j < FRAMES; j++)
-                        {
-                            pc.printf("[%03d] 0x%08x\n", j + 1, frames[j]);
-                        }
+                    // for (j = 0; j < i - 9; j++)
+                    // {
+                    //     pc.printf("%d", storage2[j]);
+                    // }
 
-                        frame_n = 0;
-                    }
+                    // pc.printf("\n");
+                }
 
-                    i = 0;
+                if (frame_n == 30)
+                {
+                    // CANMessage msg;
+                    // msg.id = 0x01;
+                    msg_64 = 0;
+                    msg_64 |= static_cast<uint64_t>(frames[0] & 0x0005FFFF);
+                    msg_64 |= static_cast<uint64_t>(frames[1] & 0x0005FFFF) << 20;
+                    msg_64 |= static_cast<uint64_t>(frames[2] & 0x0005FFFF) << 40;
+                    memcpy(msg.data, &msg_64, sizeof(msg_64));
+                    can.write(msg);
+                    frame_n = 0;
                 }
             }
+
+            i = idle = 0;
         }
-        else if (clkLevel)
-        {
-            idle++;
-
-            if (idle == 10)
-            {
-                i = idle = 0;
-            }
-        }
-
-        // if (clkLevel)
-        // {
-        //     idle++;
-        // }
-        // else
-        // {
-        //     idle = 0;
-        // }
-
-        // if (idle == 10)
-        // {
-        //     if (i > 45)
-        //     {
-        //         lastBit = true;
-        //         index = 20;
-        //         frame = 0;
-
-        //         for (j = 0; j < i - 9; j++)
-        //         {
-        //             if (storage[j] != lastBit)
-        //             {
-        //                 lastBit = storage[j];
-
-        //                 if (lastBit)
-        //                 {
-        //                     frame |= (storage2[j] ? 1 : 0) << --index;
-
-        //                     if (index < 0)
-        //                     {
-        //                         break;
-        //                     }
-        //                 }
-        //             }
-        //         }
-
-        //         if (index == 0)
-        //         {
-        //             frames[frame_n++] = frame;
-        //             pc.printf("0x%08x\t", frame);
-
-        //             for (j = 0; j < i - 9; j++)
-        //             {
-        //                 pc.printf("%d", storage2[j]);
-        //             }
-
-        //             pc.printf("\n");
-        //         }
-
-        //         if (frame_n == FRAMES)
-        //         {
-        //             for (j = 0; j < FRAMES; j++)
-        //             {
-        //                 pc.printf("[%03d] 0x%08x\n", j + 1, frames[j]);
-        //             }
-
-        //             frame_n = 0;
-        //         }
-        //     }
-
-        //     i = idle = 0;
-        // }
 
         // if (idle == 10)
         // {
