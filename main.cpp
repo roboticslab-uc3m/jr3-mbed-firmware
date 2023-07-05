@@ -1,5 +1,4 @@
 #include "mbed.h"
-#include "FastIO.h"
 
 void setSystemFrequency(int clkDiv, int M, int N)
 {
@@ -57,13 +56,11 @@ int main()
 
     wait(5);
 
-    // PortIn port(Port0, 0x00000003);
-    FastIn<p9> clock;
-    FastIn<p10> data;
+    PortIn port(Port0, 0x00000003);
 
-    const unsigned int STORAGE_SIZE = 100;
+    const unsigned int STORAGE_SIZE = 10;
     const unsigned int FRAME_LENGTH = 20;
-    const unsigned int CLOCK_TIMEOUT = 5;
+    const unsigned int CLOCK_TIMEOUT = 7;
     const uint32_t SIGNAL_BIT = 0x10000000U; // don't use 0x80000000U as it is `osFlagsError`
 
     unsigned long clockTickCounter = 0;
@@ -77,7 +74,6 @@ int main()
 
     int index = FRAME_LENGTH;
     uint32_t buffer = SIGNAL_BIT;
-    bool buffBool[FRAME_LENGTH];
     uint32_t storage[STORAGE_SIZE];
 
     bool clkLevel, dataLevel;
@@ -87,7 +83,9 @@ int main()
     int idleCounter = 0;
     // int resets = 0;
 
-    int idleStorage[50];
+    const unsigned int BLARG = 100;
+    int idleStorage[BLARG];
+    int idleStorage2[BLARG];
     int idleCtr2 = 0;
     int idleCtr3 = 0;
 
@@ -95,156 +93,31 @@ int main()
 
     while (true)
     {
-        // pins = port.read();
+        pins = port.read();
         // dataLevel = pins & 0x00000002;
-        // clkLevel = pins & 0x00000001;
-        clkLevel = clock.read();
-        dataLevel = data.read();
+        clkLevel = pins & 0x00000001;
 
-        // if (!wasFirstRead)
-        // {
-        //     if (!clkLevel)
-        //     {
-        //         continue;
-        //     }
-        //     else
-        //     {
-        //         wasFirstRead = true;
-        //     }
-        // }
-
-        // if (clkLevel && clockState)
-        // {
-        //     // idleCtr2++;
-
-        //     if (++idleCounter == CLOCK_TIMEOUT)
-        //     {
-        //         // pc.printf("idle\n");
-        //         idleCounter = 0;
-        //         isTransmittingFrame = false;
-
-        //         // if (!clkLevel)
-        //         // {
-        //         //     // pc.printf("idle and low level\n");
-        //         //     continue; // disregard data readings
-        //         // }
-        //     }
-        // }
-        // else
+        if (clkLevel && clockState)
         {
-            // idleStorage[idleCtr3++] = idleCtr2;
-            // idleCtr2 = 0;
-
-            // if (idleCtr3 == 50)
-            // {
-            //     for (int i = 0; i < 50; i++)
-            //     {
-            //         pc.printf("[%02d] %d\n", i, idleStorage[i]);
-            //     }
-
-            //     idleCtr3 = 0;
-            // }
-
-            // pc.printf("in clock read clause\n");
-            // idleCounter = 0;
-
-            if (clkLevel) // clock level high
-            {
-                if (!clockState) // clock rising edge
-                {
-                    // clockTickCounter++;
-                    clockState = true;
-
-                    if (isTransmittingFrame)
-                    {
-                        // pc.printf("reading %d\n", dataLevel);
-                        // buffer |= (dataLevel ? 1 : 0) << --index;
-                        buffBool[--index] = dataLevel;
-
-                        if (index == 0)
-                        {
-                            // pc.printf("read: 0x%08x\n", buffer);
-                            buffer = 0;
-
-                            for (int i = 0; i < FRAME_LENGTH; i++)
-                            {
-                                buffer |= (buffBool[i] ? 1 : 0) << i;
-                            }
-
-                            storage[storageIndex++] = buffer;
-
-                            frameCounter++;
-
-                            if (storageIndex == STORAGE_SIZE)
-                            {
-                                // pc.printf("clockTickCounter = %d\n", clockTickCounter);
-
-                                for (int i = 0; i < STORAGE_SIZE; i++)
-                                {
-                                    pc.printf("[%03d] 0x%08x\n", i + 1, storage[i] & 0x000FFFFF);
-                                }
-
-                                storageIndex = 0;
-                                // resets = 0;
-                            }
-
-                            isTransmittingFrame = false;
-                        }
-                    }
-                    else if (isStartPulse) // isTransmittingFrame is already false
-                    {
-                        // pc.printf("resetting flags A\n");
-                        // invalidate, we are amid a frame transmission (which is not being accounted)
-                        isTransmittingFrame = isStartPulse = false;
-                    }
-                }
-            }
-            else // clock level low
-            {
-                if (clockState) // clock falling edge
-                {
-                    clockState = false;
-
-                    if (isStartPulse)
-                    {
-                        // pc.printf("resetting flags B\n");
-                        isTransmittingFrame = isStartPulse = false; // invalidate
-                        // resets++;
-                    }
-                }
-            }
+            idleCtr2++;
         }
-
-        if (dataLevel) // data level high
+        else
         {
-            if (!dataState) // data rising edge
-            {
-                // dataTickCounter++;
-                dataState = true;
+            idleStorage[idleCtr3++] = idleCtr2;
+            idleStorage2[idleCtr3 - 1] = clkLevel;
+            idleCtr2 = 0;
 
-                if (!isTransmittingFrame && isStartPulse && clkLevel)
-                {
-                    // pc.printf("setting transmit flag to true\n");
-                    isStartPulse = false;
-                    isTransmittingFrame = true;
-                    index = FRAME_LENGTH;
-                    buffer = SIGNAL_BIT;
-                    // counter = 0; // FIXME: is this enough?
-                }
-            }
-        }
-        else // data level low
-        {
-            if (dataState) // data falling edge
+            if (idleCtr3 == BLARG)
             {
-                dataState = false;
-
-                if (!isTransmittingFrame && clkLevel)
+                for (int i = 0; i < BLARG; i++)
                 {
-                    // pc.printf("setting start pulse to true\n");
-                    isStartPulse = true;
+                    pc.printf("[%03d] %d %d\n", i, idleStorage[i], idleStorage2[i]);
                 }
+
+                idleCtr3 = 0;
             }
+
+            clockState = clkLevel;
         }
     }
 }
