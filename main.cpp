@@ -1,4 +1,5 @@
 #include "mbed.h"
+#include "FastIO.h"
 
 void setSystemFrequency(int clkDiv, int M, int N)
 {
@@ -56,68 +57,174 @@ int main()
 
     wait(5);
 
-    PortIn port(Port0, 0x00000003);
-
-    const unsigned int STORAGE_SIZE = 10;
-    const unsigned int FRAME_LENGTH = 20;
-    const unsigned int CLOCK_TIMEOUT = 7;
-    const uint32_t SIGNAL_BIT = 0x10000000U; // don't use 0x80000000U as it is `osFlagsError`
-
-    unsigned long clockTickCounter = 0;
-    // unsigned long dataTickCounter = 0;
-    unsigned long frameCounter = 0;
-
-    bool isTransmittingFrame = false;
-    bool isStartPulse = false; // pulse high-low-high on DATA while DLCK is high
-    bool clockState = true;
-    bool dataState = true;
-
-    int index = FRAME_LENGTH;
-    uint32_t buffer = SIGNAL_BIT;
-    uint32_t storage[STORAGE_SIZE];
+    // PortIn port(Port0, 0x00000003);
+    FastIn<p9> clock;
+    FastIn<p10> data;
 
     bool clkLevel, dataLevel;
+    bool clockState = true;
 
-    int pins = 0;
-    int storageIndex = 0;
-    int idleCounter = 0;
-    // int resets = 0;
-
-    const unsigned int BLARG = 100;
+    const unsigned int BLARG = 500;
     int idleStorage[BLARG];
     int idleStorage2[BLARG];
-    int idleCtr2 = 0;
+    int idleCtr2 = 1;
     int idleCtr3 = 0;
+
+    const static int BLORG = 5000;
+    bool storage[BLORG];
+    bool storage2[BLORG];
+    int i = 0;
+    int idle = 0;
+    const unsigned int FRAMES = 500;
+    uint32_t frames[FRAMES];
+    int frame_n = 0;
+
+    bool lastBit = true;
+    int index = 20;
+    uint32_t frame = 0;
+
+    int j;
+
+    int pins;
 
     // bool wasFirstRead = false;
 
     while (true)
     {
-        pins = port.read();
-        // dataLevel = pins & 0x00000002;
-        clkLevel = pins & 0x00000001;
+        // pins = port.read();
+        // storage[i] = pins & 0x00000001;
+        // storage2[i] = pins & 0x00000002;
 
-        if (clkLevel && clockState)
+        storage[i] = clkLevel = clock.read();
+        storage2[i] = data.read();
+
+        i++;
+
+        if (clkLevel)
         {
-            idleCtr2++;
+            idle++;
         }
         else
         {
-            idleStorage[idleCtr3++] = idleCtr2;
-            idleStorage2[idleCtr3 - 1] = clkLevel;
-            idleCtr2 = 0;
+            idle = 0;
+        }
 
-            if (idleCtr3 == BLARG)
+        if (idle == 10)
+        {
+            if (i > 45)
             {
-                for (int i = 0; i < BLARG; i++)
+                lastBit = true;
+                index = 20;
+                frame = 0;
+
+                for (j = 0; j < i - 9; j++)
                 {
-                    pc.printf("[%03d] %d %d\n", i, idleStorage[i], idleStorage2[i]);
+                    if (storage[j] != lastBit)
+                    {
+                        lastBit = storage[j];
+
+                        if (lastBit)
+                        {
+                            frame |= (storage2[j] ? 1 : 0) << --index;
+
+                            if (index < 0)
+                            {
+                                break;
+                            }
+                        }
+                    }
                 }
 
-                idleCtr3 = 0;
+                if (index == 0)
+                {
+                    frames[frame_n++] = frame;
+                    // pc.printf("0x%08x\t", frame);
+
+                    // for (j = 0; j < i - 9; j++)
+                    // {
+                    //     pc.printf("%d", storage2[j]);
+                    // }
+
+                    // pc.printf("\n");
+                }
+
+                if (frame_n == FRAMES)
+                {
+                    for (j = 0; j < FRAMES; j++)
+                    {
+                        pc.printf("[%03d] 0x%08x\n", j + 1, frames[j]);
+                    }
+
+                    frame_n = 0;
+                }
             }
 
-            clockState = clkLevel;
+            i = idle = 0;
         }
+
+        // if (idle == 10)
+        // {
+        //     pc.printf("[CLCK] ");
+
+        //     for (int j = 0; j < i; j++)
+        //     {
+        //         pc.printf("%d", storage[j]);
+        //     }
+
+        //     pc.printf("\n[DATA] ");
+
+        //     for (int j = 0; j < i; j++)
+        //     {
+        //         pc.printf("%d", storage2[j]);
+        //     }
+
+        //     pc.printf("\n");
+
+        //     i = idle = 0;
+        // }
+
+        // if (i == BLORG)
+        // {
+        //     pc.printf("[CLCK] ");
+
+        //     for (int j = 0; j < BLORG; j++)
+        //     {
+        //         pc.printf("%d", storage[j]);
+        //     }
+
+        //     pc.printf("\n[DATA] ");
+
+        //     for (int j = 0; j < BLORG; j++)
+        //     {
+        //         pc.printf("%d", storage2[j]);
+        //     }
+
+        //     pc.printf("\n");
+
+        //     i = idle = 0;
+        // }
+
+        // if (clkLevel && clockState)
+        // {
+        //     idleCtr2++;
+        // }
+        // else
+        // {
+        //     idleStorage[idleCtr3++] = idleCtr2;
+        //     idleStorage2[idleCtr3 - 1] = clkLevel;
+        //     idleCtr2 = 1;
+
+        //     if (idleCtr3 == BLARG)
+        //     {
+        //         for (int i = 0; i < BLARG; i++)
+        //         {
+        //             pc.printf("[%03d] %d %d\n", i, idleStorage[i], idleStorage2[i]);
+        //         }
+
+        //         idleCtr3 = 0;
+        //     }
+
+        //     clockState = clkLevel;
+        // }
     }
 }
