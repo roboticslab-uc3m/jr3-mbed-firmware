@@ -1,5 +1,5 @@
 #include "mbed.h"
-#include "FastIO.h"
+#include "LPC17xx.h"
 
 // FastIn<p9> clk;
 // FastIn<p10> data;
@@ -24,6 +24,7 @@ public:
         //   thread(_thread),
         //   port(Port0, 0x00000003),
           pc(pc),
+          pp(Port0, 0x00000003),
           clockTickCounter(0),
           dataTickCounter(0),
           frameCounter(0),
@@ -44,6 +45,7 @@ public:
     void worker()
     {
         bool clkLevel, dataLevel;
+        int pins;
         // int storageIndex = 0;
         // int counter = 0;
         // int counter2 = 0;
@@ -59,13 +61,16 @@ public:
 
         while (true)
         {
-            dataLevel = data.read() == 1;
-            clkLevel = clk.read() == 1;
+            // dataLevel = data.read() == 1;
+            // clkLevel = clk.read() == 1;
+            pins = pp.read();
+            dataLevel = pins & 0x00000002;
+            clkLevel = pins & 0x00000001;
 
-            if (offsetCount++ < offset)
-            {
-                continue;
-            }
+            // if (offsetCount++ < offset)
+            // {
+            //     continue;
+            // }
 
             // pc.printf("SystemCoreClock = %d Hz\n", SystemCoreClock);
 
@@ -220,8 +225,9 @@ public:
 
 // private:
     Serial & pc;
-    FastIn<p9> clk;
-    FastIn<p10> data;
+    // FastIn<p9> clk;
+    // FastIn<p10> data;
+    PortIn pp;
     // PortIn port;
 
     // Thread & thread;
@@ -367,6 +373,8 @@ int main()
     // thread.start(callback(&sensor, &SensorFrameHandler::worker));
 
     pc.printf("worker start\n");
+
+    wait(5);
     sensor.worker();
 
     // while (true)
