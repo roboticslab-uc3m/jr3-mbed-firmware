@@ -46,6 +46,20 @@ void setSystemFrequency(int clkDiv, int M, int N)
     //                              ((LPC_SC->CCLKCFG & 0xFF) + 1));
 }
 
+inline int getDiff(int val1, int val2)
+{
+    int diff = val2 - val1;
+
+    if (diff <= 0)
+    {
+        return val2 + 8 - val1;
+    }
+    else
+    {
+        return diff;
+    }
+}
+
 int main()
 {
     wait(5);
@@ -95,6 +109,8 @@ int main()
     can.reset();
 
     CANMessage msg;
+    int refId1 = 0;
+    int refId2 = 0;
     msg.id = 0x01;
 
     uint64_t msg_64 = 0;
@@ -160,15 +176,30 @@ int main()
                     // pc.printf("\n");
                 }
 
-                if (frame_n == 30)
+                if (frame_n == 4)
                 {
                     // CANMessage msg;
                     // msg.id = 0x01;
                     msg_64 = 0;
-                    msg_64 |= static_cast<uint64_t>(frames[0] & 0x0005FFFF);
-                    msg_64 |= static_cast<uint64_t>(frames[1] & 0x0005FFFF) << 20;
-                    msg_64 |= static_cast<uint64_t>(frames[2] & 0x0005FFFF) << 40;
+                    // msg_64 |= static_cast<uint64_t>(frames[0] & 0x0005FFFF);
+                    // msg_64 |= static_cast<uint64_t>(frames[1] & 0x0005FFFF) << 20;
+                    // msg_64 |= static_cast<uint64_t>(frames[2] & 0x0005FFFF) << 40;
+                    msg_64 |= static_cast<uint64_t>(frames[0] & 0x0000FFFF);
+                    msg_64 |= static_cast<uint64_t>(frames[1] & 0x0000FFFF) << 16;
+                    msg_64 |= static_cast<uint64_t>(frames[2] & 0x0000FFFF) << 32;
+                    msg_64 |= static_cast<uint64_t>(frames[3] & 0x0000FFFF) << 48;
                     memcpy(msg.data, &msg_64, sizeof(msg_64));
+
+                    msg.id = refId1 = (frames[0] & 0x00070000) >> 16;
+                    refId2 = ((frames[1] & 0x00070000) >> 16);
+                    msg.id |= (getDiff(refId1, refId2) & 0x00000003) << 3;
+                    refId1 = refId2;
+                    refId2 = ((frames[2] & 0x00070000) >> 16);
+                    msg.id |= (getDiff(refId1, refId2) & 0x00000003) << 5;
+                    refId1 = refId2;
+                    refId2 = ((frames[3] & 0x00070000) >> 16);
+                    msg.id |= (getDiff(refId1, refId2) & 0x00000003) << 7;
+
                     can.write(msg);
                     frame_n = 0;
                 }
