@@ -1,6 +1,10 @@
 #include "mbed.h"
-#include "FastIO.h"
-#include <cstring>
+#include "JR3.hpp"
+#include "JR3Port.hpp"
+#include "JR3PortRegister.hpp"
+
+#define CLOCK_PIN p9
+#define DATA_PIN p10
 
 void setSystemFrequency(int clkDiv, int M, int N)
 {
@@ -46,22 +50,16 @@ void setSystemFrequency(int clkDiv, int M, int N)
     //                              ((LPC_SC->CCLKCFG & 0xFF) + 1));
 }
 
-inline int getDiff(int val1, int val2)
-{
-    int diff = val2 - val1;
-
-    if (diff <= 0)
-    {
-        return val2 + 8 - val1;
-    }
-    else
-    {
-        return diff;
-    }
-}
-
 int main()
 {
+    // JR3<CLOCK_PIN, DATA_PIN> jr3;
+    // JR3Port jr3(Port0, CLOCK_PIN, DATA_PIN);
+    JR3PortRegister<Port0, CLOCK_PIN, DATA_PIN> jr3;
+
+    const int STORAGE_SIZE = 500;
+    int storage[STORAGE_SIZE];
+    int storageIndex = 0;
+
     wait(5);
 
     // overclock CPU from 96 MHz to 128 MHz
@@ -74,203 +72,18 @@ int main()
 
     pc.printf("ready\n");
 
-    // PortIn port(Port0, 0x00000003);
-    FastIn<p9> clock;
-    FastIn<p10> data;
-
-    bool clkLevel, dataLevel;
-    bool clockState = true;
-
-    const unsigned int BLARG = 500;
-    int idleStorage[BLARG];
-    int idleStorage2[BLARG];
-    int idleCtr2 = 1;
-    int idleCtr3 = 0;
-
-    const static int BLORG = 1000;
-    bool storage[BLORG];
-    bool storage2[BLORG];
-    int i = 0;
-    int idle = 0;
-    const unsigned int FRAMES = 500;
-    uint32_t frames[FRAMES];
-    int frame_n = 0;
-
-    bool lastBit = true;
-    int index = 20;
-    uint32_t frame = 0;
-
-    int j;
-
-    int pins;
-
-    CAN can(p30, p29); // rd, td
-    can.frequency(1000000);
-    can.reset();
-
-    CANMessage msg;
-    int refId1 = 0;
-    int refId2 = 0;
-    msg.id = 0x01;
-
-    uint64_t msg_64 = 0;
-
-    // bool wasFirstRead = false;
-
     while (true)
     {
-        // pins = port.read();
-        // storage[i] = pins & 0x00000001;
-        // storage2[i] = pins & 0x00000002;
+        storage[storageIndex++] = jr3.readFrame();
 
-        storage[i] = clkLevel = clock.read();
-        storage2[i] = data.read();
-
-        i++;
-
-        if (clkLevel)
+        if (storageIndex == STORAGE_SIZE)
         {
-            idle++;
-        }
-        else
-        {
-            idle = 0;
-        }
-
-        if (idle == 10)
-        {
-            if (i > 45)
+            for (int i = 0; i < STORAGE_SIZE; i++)
             {
-                lastBit = true;
-                index = 20;
-                frame = 0;
-
-                for (j = 0; j < i - 9; j++)
-                {
-                    if (storage[j] != lastBit)
-                    {
-                        lastBit = storage[j];
-
-                        if (lastBit)
-                        {
-                            frame |= (storage2[j] ? 1 : 0) << --index;
-
-                            if (index < 0)
-                            {
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if (index == 0)
-                {
-                    frames[frame_n++] = frame;
-                    // pc.printf("0x%08x\n", frame);
-
-                    // for (j = 0; j < i - 9; j++)
-                    // {
-                    //     pc.printf("%d", storage2[j]);
-                    // }
-
-                    // pc.printf("\n");
-                }
-
-                if (frame_n == 4)
-                {
-                    // CANMessage msg;
-                    // msg.id = 0x01;
-                    msg_64 = 0;
-                    // msg_64 |= static_cast<uint64_t>(frames[0] & 0x0005FFFF);
-                    // msg_64 |= static_cast<uint64_t>(frames[1] & 0x0005FFFF) << 20;
-                    // msg_64 |= static_cast<uint64_t>(frames[2] & 0x0005FFFF) << 40;
-                    msg_64 |= static_cast<uint64_t>(frames[0] & 0x0000FFFF);
-                    msg_64 |= static_cast<uint64_t>(frames[1] & 0x0000FFFF) << 16;
-                    msg_64 |= static_cast<uint64_t>(frames[2] & 0x0000FFFF) << 32;
-                    msg_64 |= static_cast<uint64_t>(frames[3] & 0x0000FFFF) << 48;
-                    memcpy(msg.data, &msg_64, sizeof(msg_64));
-
-                    msg.id = refId1 = (frames[0] & 0x00070000) >> 16;
-                    refId2 = ((frames[1] & 0x00070000) >> 16);
-                    msg.id |= (getDiff(refId1, refId2) & 0x00000003) << 3;
-                    refId1 = refId2;
-                    refId2 = ((frames[2] & 0x00070000) >> 16);
-                    msg.id |= (getDiff(refId1, refId2) & 0x00000003) << 5;
-                    refId1 = refId2;
-                    refId2 = ((frames[3] & 0x00070000) >> 16);
-                    msg.id |= (getDiff(refId1, refId2) & 0x00000003) << 7;
-
-                    can.write(msg);
-                    frame_n = 0;
-                }
+                pc.printf("[%03d] [%d] 0x%04X\n", i + 1, (storage[i] & 0x000F0000) >> 16, storage[i] & 0x0000FFFF);
             }
 
-            i = idle = 0;
+            storageIndex = 0;
         }
-
-        // if (idle == 10)
-        // {
-        //     pc.printf("[CLCK] ");
-
-        //     for (int j = 0; j < i; j++)
-        //     {
-        //         pc.printf("%d", storage[j]);
-        //     }
-
-        //     pc.printf("\n[DATA] ");
-
-        //     for (int j = 0; j < i; j++)
-        //     {
-        //         pc.printf("%d", storage2[j]);
-        //     }
-
-        //     pc.printf("\n");
-
-        //     i = idle = 0;
-        // }
-
-        // if (i == BLORG)
-        // {
-        //     pc.printf("[CLCK] ");
-
-        //     for (int j = 0; j < BLORG; j++)
-        //     {
-        //         pc.printf("%d", storage[j]);
-        //     }
-
-        //     pc.printf("\n[DATA] ");
-
-        //     for (int j = 0; j < BLORG; j++)
-        //     {
-        //         pc.printf("%d", storage2[j]);
-        //     }
-
-        //     pc.printf("\n");
-
-        //     i = idle = 0;
-        // }
-
-        // if (clkLevel && clockState)
-        // {
-        //     idleCtr2++;
-        // }
-        // else
-        // {
-        //     idleStorage[idleCtr3++] = idleCtr2;
-        //     idleStorage2[idleCtr3 - 1] = clkLevel;
-        //     idleCtr2 = 1;
-
-        //     if (idleCtr3 == BLARG)
-        //     {
-        //         for (int i = 0; i < BLARG; i++)
-        //         {
-        //             pc.printf("[%03d] %d %d\n", i, idleStorage[i], idleStorage2[i]);
-        //         }
-
-        //         idleCtr3 = 0;
-        //     }
-
-        //     clockState = clkLevel;
-        // }
     }
 }
