@@ -15,13 +15,13 @@ enum jr3_channel {
     CALIBRATION
 };
 
-float parseMantissa(uint16_t mantissa)
+float convertToFloat(uint16_t mantissa)
 {
     float value = 0.0f;
 
     for (int i = 0; i < 16; i++)
     {
-        value += ((mantissa & (1U << (15 - i))) >> (15 - i)) * (2 ^ -i);
+        value += ((mantissa & (1U << (15 - i))) >> (15 - i)) * powf(2, -i);
 
         if (i == 0)
         {
@@ -33,9 +33,24 @@ float parseMantissa(uint16_t mantissa)
     return value;
 }
 
-inline float parseCoefficient(int8_t exponent, uint16_t mantissa)
+inline float convertToFloat(int8_t exponent, uint16_t mantissa)
 {
-    return parseMantissa(mantissa) * (2 ^ exponent);
+    return convertToFloat(mantissa) * powf(2, exponent);
+}
+
+uint16_t convertToInteger(float value)
+{
+    int16_t result = 0;
+    float integer = 0;
+    float absolute = fabsf(value);
+
+    for (int i = 0; i < 15; i++)
+    {
+        modff((absolute * powf(2, 15 - i)), &integer);
+        result |= (int)integer << i;
+    }
+
+    return value < 0.0f ? result * -1 : result;
 }
 
 int main()
@@ -102,14 +117,12 @@ int main()
                     {
                         for (int j = 0; j < 6; j++)
                         {
-                            uint8_t mantissa_lsb = calibration[10 + (i * 20) + (j * 3)];
-                            uint8_t mantissa_msb = calibration[10 + (i * 20) + (j * 3) + 1];
-                            int8_t  exponent     = calibration[10 + (i * 20) + (j * 3) + 2];
-
-                            calibrationCoeffs[(i * 6) + j] = parseCoefficient(exponent, (((uint16_t)mantissa_msb) << 8) | mantissa_lsb);
+                            uint32_t coefficient = 0;
+                            std::memcpy(&coefficient, calibration + 10 + (i * 20) + (j * 3), 3);
+                            calibrationCoeffs[(i * 6) + j] = convertToFloat(coefficient >> 16, coefficient & 0x0000FFFF);
                         }
 
-                        printf("%0.4f %0.4f %0.4f %0.4f %0.4f %0.4f\n",
+                        printf("%0.15f %0.15f %0.15f %0.15f %0.15f %0.15f\n",
                                calibrationCoeffs[i * 6],
                                calibrationCoeffs[i * 6 + 1],
                                calibrationCoeffs[i * 6 + 2],
@@ -122,10 +135,8 @@ int main()
 
                     for (int i = 0; i < 6; i++)
                     {
-                        uint8_t fullScales_lsb = calibration[28 + (i * 20)];
-                        uint8_t fullScales_msb = calibration[28 + (i * 20) + 1];
-                        int16_t fullScales = (((uint16_t)fullScales_msb) << 8) | fullScales_lsb;
-
+                        int16_t fullScales = 0;
+                        std::memcpy(&fullScales, calibration + 28 + (i * 20), 2);
                         printf("%d\n", fullScales);
                     }
 
