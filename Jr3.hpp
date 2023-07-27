@@ -54,6 +54,7 @@ inline Jr3<portName, clockPin, dataPin>::Jr3()
 template <PortName portName, PinName clockPin, PinName dataPin>
 inline uint32_t Jr3<portName, clockPin, dataPin>::readFrame()
 {
+    pin_state pins;
     uint32_t frame = 0;
 
     awaitNextFrame();
@@ -64,9 +65,9 @@ inline uint32_t Jr3<portName, clockPin, dataPin>::readFrame()
         while (readClock()) {}
 
         // await rising edge on clock signal
-        while (!readClock()) {}
+        while (((pins = readPins()) & DATA_LOW_CLOCK_HIGH) == 0) {}
 
-        if (readData())
+        if ((pins & DATA_HIGH_CLOCK_LOW) == DATA_HIGH_CLOCK_LOW)
         {
             frame |= (1U << i);
         }
