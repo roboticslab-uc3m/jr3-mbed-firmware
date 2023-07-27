@@ -1,0 +1,9 @@
+{
+    "target_overrides": {
+        "*": {
+            "platform.minimal-printf-enable-floating-point": true,
+            "platform.stdio-convert-newlines": false,
+            "platform.stdio-convert-tty-newlines": false
+        }
+    }
+}
