@@ -107,7 +107,7 @@ inline void Jr3<portName, clockPin, dataPin>::awaitNextFrame()
 }
 
 template <PortName portName, PinName clockPin, PinName dataPin>
-inline Jr3<portName, clockPin, dataPin>::pin_state Jr3<portName, clockPin, dataPin>::readPins()
+inline typename Jr3<portName, clockPin, dataPin>::pin_state Jr3<portName, clockPin, dataPin>::readPins()
 {
     return static_cast<pin_state>(*port_in & DATA_HIGH_CLOCK_HIGH);
 }

@@ -71,11 +71,7 @@ int main()
 
     float calibrationCoeffs[36];
 
-    wait(5);
-
-    printf("System clock = %d\n", SystemCoreClock);
-
-    wait(5);
+    ThisThread::sleep_for(5s);
 
     printf("ready\n");
 
@@ -118,11 +114,11 @@ int main()
                         for (int j = 0; j < 6; j++)
                         {
                             uint32_t coefficient = 0;
-                            std::memcpy(&coefficient, calibration + 10 + (i * 20) + (j * 3), 3);
+                            memcpy(&coefficient, calibration + 10 + (i * 20) + (j * 3), 3);
                             calibrationCoeffs[(i * 6) + j] = convertToFloat(coefficient >> 16, coefficient & 0x0000FFFF);
                         }
 
-                        printf("%0.15f %0.15f %0.15f %0.15f %0.15f %0.15f\n",
+                        printf("%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
                                calibrationCoeffs[i * 6],
                                calibrationCoeffs[i * 6 + 1],
                                calibrationCoeffs[i * 6 + 2],
@@ -136,7 +132,7 @@ int main()
                     for (int i = 0; i < 6; i++)
                     {
                         int16_t fullScales = 0;
-                        std::memcpy(&fullScales, calibration + 28 + (i * 20), 2);
+                        memcpy(&fullScales, calibration + 28 + (i * 20), 2);
                         printf("%d\n", fullScales);
                     }
 
