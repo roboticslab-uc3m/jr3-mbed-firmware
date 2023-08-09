@@ -9,7 +9,9 @@
 #define CAN_BAUDRATE 1000000
 #define CAN_ID 0x01
 
-enum jr3_channel {
+#define DBG 0
+
+enum jr3_channel : uint8_t {
     VOLTAGE = 0,
     FORCE_X,
     FORCE_Y,
@@ -70,150 +72,20 @@ ConditionVariable cv(mutex);
 
 Jr3<Port0, CLOCK_PIN, DATA_PIN> jr3;
 
-const int STORAGE_SIZE = 500;
-int storage[STORAGE_SIZE];
-int storageIndex = 0;
-
-uint8_t calibration[256];
-uint8_t calibrationIndex = 0;
-int calibrationCounter = 0;
-
 float calibrationCoeffs[36];
+float decoupled[6];
 
-uint32_t frame;
-
-float raw_fx, raw_fy, raw_fz;
-float raw_mx, raw_my, raw_mz;
-
-uint16_t decoupled_fx, decoupled_fy, decoupled_fz;
-uint16_t decoupled_mx, decoupled_my, decoupled_mz;
-
-uint16_t offset_fx = 0, offset_fy = 0, offset_fz = 0;
-uint16_t offset_mx = 0, offset_my = 0, offset_mz = 0;
-
-bool offsetsAcquired = false;
 bool dataReady = false;
 
-void worker()
+void initialize()
 {
-    uint16_t temp_fx, temp_fy, temp_fz;
-    uint16_t temp_mx, temp_my, temp_mz;
+    uint8_t calibration[256];
+    uint8_t calibrationIndex = 0;
+    int calibrationCounter = 0;
 
-    while (true)
+    while (calibrationCounter < 256)
     {
-        frame = jr3.readFrame();
-
-        // storage[storageIndex++] = frame;
-
-        switch ((frame & 0x000F0000) >> 16)
-        {
-        case FORCE_X:
-            raw_fx = fixedToIEEE754(frame & 0x0000FFFF);
-            break;
-        case FORCE_Y:
-            raw_fy = fixedToIEEE754(frame & 0x0000FFFF);
-            break;
-        case FORCE_Z:
-            raw_fz = fixedToIEEE754(frame & 0x0000FFFF);
-            break;
-        case TORQUE_X:
-            raw_mx = fixedToIEEE754(frame & 0x0000FFFF);
-            break;
-        case TORQUE_Y:
-            raw_my = fixedToIEEE754(frame & 0x0000FFFF);
-            break;
-        case TORQUE_Z:
-            raw_mz = fixedToIEEE754(frame & 0x0000FFFF);
-
-            temp_fx = fixedFromIEEE754(
-                               calibrationCoeffs[0] * raw_fx + calibrationCoeffs[1] * raw_fy + calibrationCoeffs[2] * raw_fz +
-                               calibrationCoeffs[3] * raw_mx + calibrationCoeffs[4] * raw_my + calibrationCoeffs[5] * raw_mz -
-                               offset_fx
-                           );
-
-            temp_fy = fixedFromIEEE754(
-                               calibrationCoeffs[6] * raw_fx + calibrationCoeffs[7] * raw_fy + calibrationCoeffs[8] * raw_fz +
-                               calibrationCoeffs[9] * raw_mx + calibrationCoeffs[10] * raw_my + calibrationCoeffs[11] * raw_mz -
-                               offset_fy
-                           );
-
-            temp_fz = fixedFromIEEE754(
-                               calibrationCoeffs[12] * raw_fx + calibrationCoeffs[13] * raw_fy + calibrationCoeffs[14] * raw_fz +
-                               calibrationCoeffs[15] * raw_mx + calibrationCoeffs[16] * raw_my + calibrationCoeffs[17] * raw_mz -
-                               offset_fz
-                           );
-
-            temp_mx = fixedFromIEEE754(
-                               calibrationCoeffs[18] * raw_fx + calibrationCoeffs[19] * raw_fy + calibrationCoeffs[20] * raw_fz +
-                               calibrationCoeffs[21] * raw_mx + calibrationCoeffs[22] * raw_my + calibrationCoeffs[23] * raw_mz -
-                               offset_mx
-                           );
-
-            temp_my = fixedFromIEEE754(
-                               calibrationCoeffs[24] * raw_fx + calibrationCoeffs[25] * raw_fy + calibrationCoeffs[26] * raw_fz +
-                               calibrationCoeffs[27] * raw_mx + calibrationCoeffs[28] * raw_my + calibrationCoeffs[29] * raw_mz -
-                               offset_my
-                           );
-
-            temp_mz = fixedFromIEEE754(
-                               calibrationCoeffs[30] * raw_fx + calibrationCoeffs[31] * raw_fy + calibrationCoeffs[32] * raw_fz +
-                               calibrationCoeffs[33] * raw_mx + calibrationCoeffs[34] * raw_my + calibrationCoeffs[35] * raw_mz -
-                               offset_mz
-                           );
-
-            if (!offsetsAcquired)
-            {
-                offset_fx = temp_fx;
-                offset_fy = temp_fy;
-                offset_fz = temp_fz;
-                offset_mx = temp_mx;
-                offset_my = temp_my;
-                offset_mz = temp_mz;
-
-                offsetsAcquired = true;
-            }
-
-            mutex.lock();
-
-            decoupled_fx = temp_fx;
-            decoupled_fy = temp_fy;
-            decoupled_fz = temp_fz;
-            decoupled_mx = temp_mx;
-            decoupled_my = temp_my;
-            decoupled_mz = temp_mz;
-
-            dataReady = true;
-
-            cv.notify_all();
-            mutex.unlock();
-
-            break;
-        }
-
-        // if (storageIndex == STORAGE_SIZE)
-        // {
-        //     for (int i = 0; i < STORAGE_SIZE; i++)
-        //     {
-        //         printf("[%03d] [%d] 0x%04X\n", i + 1, (storage[i] & 0x000F0000) >> 16, storage[i] & 0x0000FFFF);
-        //     }
-
-        //     storageIndex = 0;
-        // }
-    }
-}
-
-int main()
-{
-    // overclock CPU from 96 MHz to 128 MHz
-    // setSystemFrequency(3, 16, 1);
-
-    ThisThread::sleep_for(5s);
-
-    printf("ready\n");
-
-    while (true)
-    {
-        frame = jr3.readFrame();
+        uint32_t frame = jr3.readFrame();
 
         if ((frame & 0x000F0000) >> 16 == CALIBRATION)
         {
@@ -226,112 +98,194 @@ int main()
                 calibrationIndex = address + 1;
                 calibrationCounter++;
             }
-
-            if (calibrationCounter == 256)
-            {
-                printf("\nEEPROM contents:\n\n");
-
-                for (int i = 0; i < 256; i += 8)
-                {
-                    printf("[%02X] %02X %02X %02X %02X %02X %02X %02X %02X\n",
-                            i,
-                            calibration[i], calibration[i + 1], calibration[i + 2], calibration[i + 3],
-                            calibration[i + 4], calibration[i + 5], calibration[i + 6], calibration[i + 7]);
-                }
-
-                printf("\ncalibration matrix:\n\n");
-
-                for (int i = 0; i < 6; i++)
-                {
-                    for (int j = 0; j < 6; j++)
-                    {
-                        uint32_t coefficient = 0;
-                        memcpy(&coefficient, calibration + 10 + (i * 20) + (j * 3), 3);
-                        calibrationCoeffs[(i * 6) + j] = fixedToIEEE754(coefficient >> 16, coefficient & 0x0000FFFF);
-                    }
-
-                    printf("%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
-                            calibrationCoeffs[i * 6],
-                            calibrationCoeffs[i * 6 + 1],
-                            calibrationCoeffs[i * 6 + 2],
-                            calibrationCoeffs[i * 6 + 3],
-                            calibrationCoeffs[i * 6 + 4],
-                            calibrationCoeffs[i * 6 + 5]);
-                }
-
-                printf("\nfull scales:\n\n");
-
-                for (int i = 0; i < 6; i++)
-                {
-                    int16_t fullScales = 0;
-                    memcpy(&fullScales, calibration + 28 + (i * 20), 2);
-                    printf("%d\n", fullScales);
-                }
-
-                printf("\ncalibration done\n\n");
-                break;
-            }
         }
     }
+
+    printf("\nEEPROM contents:\n\n");
+
+    for (int i = 0; i < 256; i += 8)
+    {
+        printf("[%02X] %02X %02X %02X %02X %02X %02X %02X %02X\n",
+                i,
+                calibration[i], calibration[i + 1], calibration[i + 2], calibration[i + 3],
+                calibration[i + 4], calibration[i + 5], calibration[i + 6], calibration[i + 7]);
+    }
+
+    printf("\ncalibration matrix:\n\n");
+
+    for (int i = 0; i < 6; i++)
+    {
+        for (int j = 0; j < 6; j++)
+        {
+            uint16_t mantissa;
+            int8_t exponent;
+
+            memcpy(&mantissa, calibration + 10 + (i * 20) + (j * 3), 2);
+            memcpy(&exponent, calibration + 12 + (i * 20) + (j * 3), 1);
+
+            calibrationCoeffs[(i * 6) + j] = fixedToIEEE754(exponent, mantissa);
+        }
+
+        printf("%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
+                calibrationCoeffs[(i * 6)],
+                calibrationCoeffs[(i * 6) + 1],
+                calibrationCoeffs[(i * 6) + 2],
+                calibrationCoeffs[(i * 6) + 3],
+                calibrationCoeffs[(i * 6) + 4],
+                calibrationCoeffs[(i * 6) + 5]);
+    }
+
+    printf("\nfull scales:\n\n");
+
+    for (int i = 0; i < 6; i++)
+    {
+        uint16_t fullScales;
+        memcpy(&fullScales, calibration + 28 + (i * 20), 2);
+        printf("%d\n", fullScales);
+    }
+
+    printf("\ncalibration done\n\n");
+}
+
+void worker()
+{
+    uint32_t frame;
+
+    float raw[6], offset[6], temp[6];
+
+    memset(raw, 0, sizeof(raw));
+    memset(offset, 0, sizeof(offset));
+    memset(temp, 0, sizeof(temp));
+
+    bool offsetsAcquired = false;
+
+#if DBG
+    const int STORAGE_SIZE = 500;
+    int storage[STORAGE_SIZE];
+    int storageIndex = 0;
+#endif
+
+    // block until the first processed frame in the next loop is FORCE_X
+    while ((jr3.readFrame() & 0x000F0000) >> 16 != VOLTAGE) {}
+
+    while (true)
+    {
+        frame = jr3.readFrame();
+
+#if DBG
+        storage[storageIndex++] = frame;
+#endif
+
+        switch ((frame & 0x000F0000) >> 16)
+        {
+        case FORCE_X:
+            raw[0] = fixedToIEEE754(frame & 0x0000FFFF);
+            continue;
+        case FORCE_Y:
+            raw[1] = fixedToIEEE754(frame & 0x0000FFFF);
+            continue;
+        case FORCE_Z:
+            raw[2] = fixedToIEEE754(frame & 0x0000FFFF);
+            continue;
+        case TORQUE_X:
+            raw[3] = fixedToIEEE754(frame & 0x0000FFFF);
+            continue;
+        case TORQUE_Y:
+            raw[4] = fixedToIEEE754(frame & 0x0000FFFF);
+            continue;
+        case TORQUE_Z:
+            raw[5] = fixedToIEEE754(frame & 0x0000FFFF);
+            break; // stay in loop
+        default:
+            continue;
+        }
+
+        for (int i = 0; i < 6; i++)
+        {
+            for (int j = 0; j < 6; j++)
+            {
+                temp[i] += calibrationCoeffs[(i * 6) + j] * raw[j];
+            }
+
+            temp[i] -= offset[i];
+        }
+
+        if (!offsetsAcquired)
+        {
+            memcpy(offset, temp, sizeof(raw));
+            offsetsAcquired = true;
+        }
+
+        mutex.lock();
+        memcpy(decoupled, temp, sizeof(temp));
+        dataReady = true;
+        cv.notify_all();
+        mutex.unlock();
+
+#if DBG
+        if (storageIndex == STORAGE_SIZE)
+        {
+            for (int i = 0; i < STORAGE_SIZE; i++)
+            {
+                printf("[%03d] [%d] 0x%04X\n", i + 1, (storage[i] & 0x000F0000) >> 16, storage[i] & 0x0000FFFF);
+            }
+
+            storageIndex = 0;
+        }
+#endif
+    }
+}
+
+int main()
+{
+    // overclock CPU from 96 MHz to 128 MHz
+    // setSystemFrequency(3, 16, 1);
+
+    ThisThread::sleep_for(5s);
+
+    printf("ready\n");
+
+    initialize();
 
     Thread thread;
     thread.start(callback(worker));
 
-    CAN can(CAN_RD_PIN, CAN_TD_PIN);
-    can.frequency(CAN_BAUDRATE);
+    CAN can(CAN_RD_PIN, CAN_TD_PIN, CAN_BAUDRATE);
     can.reset();
 
     CANMessage msg;
     msg.len = 6;
 
-    uint64_t msg_64 = 0;
-
-    uint16_t temp_fx, temp_fy, temp_fz;
-    uint16_t temp_mx, temp_my, temp_mz;
+    float temp[6];
+    uint16_t fixed[6];
 
     while (true)
     {
         mutex.lock();
 
-        while (!dataReady)
+        if (!dataReady)
         {
             cv.wait();
         }
 
-        temp_fx = decoupled_fx;
-        temp_fy = decoupled_fy;
-        temp_fz = decoupled_fz;
-        temp_mx = decoupled_mx;
-        temp_my = decoupled_my;
-        temp_mz = decoupled_mz;
-
+        memcpy(temp, decoupled, sizeof(decoupled));
         dataReady = false;
-
         mutex.unlock();
 
-        msg_64 = 0;
-        msg_64 |= static_cast<uint64_t>(temp_fx);
-        msg_64 |= static_cast<uint64_t>(temp_fy) << 16;
-        msg_64 |= static_cast<uint64_t>(temp_fz) << 32;
-        memcpy(msg.data, &msg_64, 6);
+        for (int i = 0; i < 6; i++)
+        {
+            fixed[i] = fixedFromIEEE754(temp[i]);
+        }
 
+        memcpy(msg.data, fixed, 6); // fx, fy, fz
         msg.id = 0x180 + CAN_ID;
         can.write(msg);
 
-        // printf("fx: %04X fy: %04X fz: %04X\n", temp_fx, temp_fy, temp_fz);
-
         // wait_ns(100);
 
-        msg_64 = 0;
-        msg_64 |= static_cast<uint64_t>(temp_mx);
-        msg_64 |= static_cast<uint64_t>(temp_my) << 16;
-        msg_64 |= static_cast<uint64_t>(temp_mz) << 32;
-        memcpy(msg.data, &msg_64, 6);
-
+        memcpy(msg.data, fixed + 3, 6); // mx, my, mz
         msg.id = 0x280 + CAN_ID;
         can.write(msg);
-
-        // printf("mx: %04X my: %04X mz: %04X\n", temp_mx, temp_my, temp_mz);
 
         wait_us(1);
     }
