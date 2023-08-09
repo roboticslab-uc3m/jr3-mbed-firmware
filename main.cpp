@@ -150,6 +150,7 @@ void initialize()
 void worker()
 {
     uint32_t frame;
+    uint8_t address;
 
     float raw[6], offset[6], temp[6];
 
@@ -171,33 +172,20 @@ void worker()
     while (true)
     {
         frame = jr3.readFrame();
+        address = (frame & 0x000F0000) >> 16;
 
 #if DBG
         storage[storageIndex++] = frame;
 #endif
 
-        switch ((frame & 0x000F0000) >> 16)
+        if (address >= FORCE_X && address <= TORQUE_Z)
         {
-        case FORCE_X:
-            raw[0] = fixedToIEEE754(frame & 0x0000FFFF);
-            continue;
-        case FORCE_Y:
-            raw[1] = fixedToIEEE754(frame & 0x0000FFFF);
-            continue;
-        case FORCE_Z:
-            raw[2] = fixedToIEEE754(frame & 0x0000FFFF);
-            continue;
-        case TORQUE_X:
-            raw[3] = fixedToIEEE754(frame & 0x0000FFFF);
-            continue;
-        case TORQUE_Y:
-            raw[4] = fixedToIEEE754(frame & 0x0000FFFF);
-            continue;
-        case TORQUE_Z:
-            raw[5] = fixedToIEEE754(frame & 0x0000FFFF);
-            break; // stay in loop
-        default:
-            continue;
+            raw[address - 1] = fixedToIEEE754(frame & 0x0000FFFF);
+        }
+
+        if (address != TORQUE_Z)
+        {
+            continue; // keep reading frames until we get all six axis values
         }
 
         for (int i = 0; i < 6; i++)
