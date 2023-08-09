@@ -20,42 +20,49 @@ enum jr3_channel {
     CALIBRATION
 };
 
-float convertToFloat(uint16_t mantissa)
+float fixedToIEEE754(int8_t exponent, uint16_t mantissa)
 {
-    float value = 0.0f;
+    uint32_t temp = 0;
 
-    for (int i = 0; i < 16; i++)
+    if (mantissa >> 15)
     {
-        value += ((mantissa & (1U << (15 - i))) >> (15 - i)) * powf(2, -i);
-
-        if (i == 0)
-        {
-            // in signed Q1.15 format, the leftmost bit determines the sign
-            value = -value;
-        }
+        temp |= (((~mantissa & 0x3FFF) + 1U) << 9) | (1U << 31);
+    }
+    else
+    {
+        temp |= (mantissa & 0x3FFF) << 9;
     }
 
-    return value;
+    temp |= (exponent + 126) << 23;
+
+    float f;
+    memcpy(&f, &temp, 4);
+    return f;
 }
 
-inline float convertToFloat(int8_t exponent, uint16_t mantissa)
+inline float fixedToIEEE754(uint16_t mantissa)
 {
-    return convertToFloat(mantissa) * powf(2, exponent);
+    // beware of integral promotion! https://stackoverflow.com/a/30474166
+    int8_t exponent = __CLZ((mantissa >> 15 ? ~mantissa : mantissa) & 0x0000FFFF) - 17;
+    return fixedToIEEE754(-exponent, mantissa << exponent);
 }
 
-uint16_t convertToInteger(float value)
+uint16_t fixedFromIEEE754(float f)
 {
-    int16_t result = 0;
-    float integer = 0;
-    float absolute = fabsf(value);
+    uint32_t temp;
+    memcpy(&temp, &f, 4);
 
-    for (int i = 0; i < 15; i++)
+    int8_t exponent = ((temp & 0x7F800000) >> 23) - 127;
+    uint16_t mantissa = (temp & 0x007FFFFF) >> (8 - exponent);
+
+    if (temp >> 31)
     {
-        modff((absolute * powf(2, 15 - i)), &integer);
-        result |= (int)integer << i;
+        return ~((mantissa - 1U) | (1U << (15 + exponent)));
     }
-
-    return value < 0.0f ? result * -1 : result;
+    else
+    {
+        return mantissa | (1U << (15 + exponent));
+    }
 }
 
 Mutex mutex;
@@ -101,52 +108,58 @@ void worker()
         switch ((frame & 0x000F0000) >> 16)
         {
         case FORCE_X:
-            raw_fx = convertToFloat(frame & 0x0000FFFF);
+            raw_fx = fixedToIEEE754(frame & 0x0000FFFF);
             break;
         case FORCE_Y:
-            raw_fy = convertToFloat(frame & 0x0000FFFF);
+            raw_fy = fixedToIEEE754(frame & 0x0000FFFF);
             break;
         case FORCE_Z:
-            raw_fz = convertToFloat(frame & 0x0000FFFF);
+            raw_fz = fixedToIEEE754(frame & 0x0000FFFF);
             break;
         case TORQUE_X:
-            raw_mx = convertToFloat(frame & 0x0000FFFF);
+            raw_mx = fixedToIEEE754(frame & 0x0000FFFF);
             break;
         case TORQUE_Y:
-            raw_my = convertToFloat(frame & 0x0000FFFF);
+            raw_my = fixedToIEEE754(frame & 0x0000FFFF);
             break;
         case TORQUE_Z:
-            raw_mz = convertToFloat(frame & 0x0000FFFF);
+            raw_mz = fixedToIEEE754(frame & 0x0000FFFF);
 
-            temp_fx = convertToInteger(
+            temp_fx = fixedFromIEEE754(
                                calibrationCoeffs[0] * raw_fx + calibrationCoeffs[1] * raw_fy + calibrationCoeffs[2] * raw_fz +
-                               calibrationCoeffs[3] * raw_mx + calibrationCoeffs[4] * raw_my + calibrationCoeffs[5] * raw_mz
-                           ) - offset_fx;
+                               calibrationCoeffs[3] * raw_mx + calibrationCoeffs[4] * raw_my + calibrationCoeffs[5] * raw_mz -
+                               offset_fx
+                           );
 
-            temp_fy = convertToInteger(
+            temp_fy = fixedFromIEEE754(
                                calibrationCoeffs[6] * raw_fx + calibrationCoeffs[7] * raw_fy + calibrationCoeffs[8] * raw_fz +
-                               calibrationCoeffs[9] * raw_mx + calibrationCoeffs[10] * raw_my + calibrationCoeffs[11] * raw_mz
-                           ) - offset_fy;
+                               calibrationCoeffs[9] * raw_mx + calibrationCoeffs[10] * raw_my + calibrationCoeffs[11] * raw_mz -
+                               offset_fy
+                           );
 
-            temp_fz = convertToInteger(
+            temp_fz = fixedFromIEEE754(
                                calibrationCoeffs[12] * raw_fx + calibrationCoeffs[13] * raw_fy + calibrationCoeffs[14] * raw_fz +
-                               calibrationCoeffs[15] * raw_mx + calibrationCoeffs[16] * raw_my + calibrationCoeffs[17] * raw_mz
-                           ) - offset_fz;
+                               calibrationCoeffs[15] * raw_mx + calibrationCoeffs[16] * raw_my + calibrationCoeffs[17] * raw_mz -
+                               offset_fz
+                           );
 
-            temp_mx = convertToInteger(
+            temp_mx = fixedFromIEEE754(
                                calibrationCoeffs[18] * raw_fx + calibrationCoeffs[19] * raw_fy + calibrationCoeffs[20] * raw_fz +
-                               calibrationCoeffs[21] * raw_mx + calibrationCoeffs[22] * raw_my + calibrationCoeffs[23] * raw_mz
-                           ) - offset_mx;
+                               calibrationCoeffs[21] * raw_mx + calibrationCoeffs[22] * raw_my + calibrationCoeffs[23] * raw_mz -
+                               offset_mx
+                           );
 
-            temp_my = convertToInteger(
+            temp_my = fixedFromIEEE754(
                                calibrationCoeffs[24] * raw_fx + calibrationCoeffs[25] * raw_fy + calibrationCoeffs[26] * raw_fz +
-                               calibrationCoeffs[27] * raw_mx + calibrationCoeffs[28] * raw_my + calibrationCoeffs[29] * raw_mz
-                           ) - offset_my;
+                               calibrationCoeffs[27] * raw_mx + calibrationCoeffs[28] * raw_my + calibrationCoeffs[29] * raw_mz -
+                               offset_my
+                           );
 
-            temp_mz = convertToInteger(
+            temp_mz = fixedFromIEEE754(
                                calibrationCoeffs[30] * raw_fx + calibrationCoeffs[31] * raw_fy + calibrationCoeffs[32] * raw_fz +
-                               calibrationCoeffs[33] * raw_mx + calibrationCoeffs[34] * raw_my + calibrationCoeffs[35] * raw_mz
-                           ) - offset_mz;
+                               calibrationCoeffs[33] * raw_mx + calibrationCoeffs[34] * raw_my + calibrationCoeffs[35] * raw_mz -
+                               offset_mz
+                           );
 
             if (!offsetsAcquired)
             {
@@ -234,7 +247,7 @@ int main()
                     {
                         uint32_t coefficient = 0;
                         memcpy(&coefficient, calibration + 10 + (i * 20) + (j * 3), 3);
-                        calibrationCoeffs[(i * 6) + j] = convertToFloat(coefficient >> 16, coefficient & 0x0000FFFF);
+                        calibrationCoeffs[(i * 6) + j] = fixedToIEEE754(coefficient >> 16, coefficient & 0x0000FFFF);
                     }
 
                     printf("%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
