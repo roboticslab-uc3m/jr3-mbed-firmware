@@ -1,6 +1,7 @@
 #include "mbed.h"
 #include "Jr3.hpp"
 
+#define JR3_PORT Port0
 #define CLOCK_PIN p9
 #define DATA_PIN p10
 
@@ -8,6 +9,8 @@
 #define CAN_TD_PIN p29
 #define CAN_BAUDRATE 1000000
 #define CAN_ID 0x01
+
+#define M_PI 3.14159265358979323846
 
 #define DBG 0
 
@@ -70,12 +73,18 @@ uint16_t fixedFromIEEE754(float f)
 Mutex mutex;
 ConditionVariable cv(mutex);
 
-Jr3<Port0, CLOCK_PIN, DATA_PIN> jr3;
+Jr3<JR3_PORT, CLOCK_PIN, DATA_PIN> jr3;
 
 float calibrationCoeffs[36];
-float decoupled[6];
+float shared[6];
 
 bool dataReady = false;
+
+const double samplingPeriod = 15.625e-6; // [s], TODO: verify this
+const double cutOffFrequency = 500; // [Hz]
+
+// https://w.wiki/7Er6
+const float smoothingFactor = samplingPeriod / (samplingPeriod + 1.0 / (2.0 * M_PI * cutOffFrequency));
 
 void initialize()
 {
@@ -152,11 +161,12 @@ void worker()
     uint32_t frame;
     uint8_t address;
 
-    float raw[6], offset[6], temp[6];
+    float raw[6], offset[6], decoupled[6], filtered[6];
 
     memset(raw, 0, sizeof(raw));
     memset(offset, 0, sizeof(offset));
-    memset(temp, 0, sizeof(temp));
+    memset(decoupled, 0, sizeof(decoupled));
+    memset(filtered, 0, sizeof(filtered));
 
     bool offsetsAcquired = false;
 
@@ -190,22 +200,25 @@ void worker()
 
         for (int i = 0; i < 6; i++)
         {
+            decoupled[i] = 0.0f;
+
             for (int j = 0; j < 6; j++)
             {
-                temp[i] += calibrationCoeffs[(i * 6) + j] * raw[j];
+                decoupled[i] += calibrationCoeffs[(i * 6) + j] * raw[j];
             }
 
-            temp[i] -= offset[i];
+            // first-order low-pass IIR filter (as an exponential moving average)
+            filtered[i] += smoothingFactor * (decoupled[i] - offset[i] - filtered[i]);
         }
 
         if (!offsetsAcquired)
         {
-            memcpy(offset, temp, sizeof(raw));
+            memcpy(offset, decoupled, sizeof(decoupled));
             offsetsAcquired = true;
         }
 
         mutex.lock();
-        memcpy(decoupled, temp, sizeof(temp));
+        memcpy(shared, filtered, sizeof(filtered));
         dataReady = true;
         cv.notify_all();
         mutex.unlock();
@@ -256,7 +269,7 @@ int main()
             cv.wait();
         }
 
-        memcpy(temp, decoupled, sizeof(decoupled));
+        memcpy(temp, shared, sizeof(shared));
         dataReady = false;
         mutex.unlock();
 
