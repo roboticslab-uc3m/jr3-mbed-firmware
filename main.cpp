@@ -14,15 +14,27 @@
 
 #define DBG 0
 
-enum jr3_channel : uint8_t {
+enum jr3_channel : uint8_t
+{
     VOLTAGE = 0,
     FORCE_X,
     FORCE_Y,
     FORCE_Z,
-    TORQUE_X,
-    TORQUE_Y,
-    TORQUE_Z,
+    MOMENT_X,
+    MOMENT_Y,
+    MOMENT_Z,
     CALIBRATION
+};
+
+enum jr3_can_ops : uint8_t
+{
+    JR3_START = 1,   // 0x080
+    JR3_STOP,        // 0x100
+    JR3_ZERO_OFFS,   // 0x180
+    JR3_SET_FILTER,  // 0x200
+    JR3_GET_FORCES,  // 0x280
+    JR3_GET_MOMENTS, // 0x300
+    JR3_ACK          // 0x380
 };
 
 float fixedToIEEE754(int8_t exponent, uint16_t mantissa)
@@ -78,7 +90,9 @@ Jr3<JR3_PORT, CLOCK_PIN, DATA_PIN> jr3;
 float calibrationCoeffs[36];
 float shared[6];
 
+bool threadRunning = false;
 bool dataReady = false;
+bool zeroOffsets = false;
 
 const double samplingPeriod = 15.625e-6; // [s], TODO: verify this
 const double cutOffFrequency = 500; // [Hz]
@@ -168,8 +182,6 @@ void worker()
     memset(decoupled, 0, sizeof(decoupled));
     memset(filtered, 0, sizeof(filtered));
 
-    bool offsetsAcquired = false;
-
 #if DBG
     const int STORAGE_SIZE = 500;
     int storage[STORAGE_SIZE];
@@ -179,7 +191,7 @@ void worker()
     // block until the first processed frame in the next loop is FORCE_X
     while ((jr3.readFrame() & 0x000F0000) >> 16 != VOLTAGE) {}
 
-    while (true)
+    while (threadRunning)
     {
         frame = jr3.readFrame();
         address = (frame & 0x000F0000) >> 16;
@@ -188,12 +200,12 @@ void worker()
         storage[storageIndex++] = frame;
 #endif
 
-        if (address >= FORCE_X && address <= TORQUE_Z)
+        if (address >= FORCE_X && address <= MOMENT_Z)
         {
             raw[address - 1] = fixedToIEEE754(frame & 0x0000FFFF);
         }
 
-        if (address != TORQUE_Z)
+        if (address != MOMENT_Z)
         {
             continue; // keep reading frames until we get all six axis values
         }
@@ -211,13 +223,14 @@ void worker()
             filtered[i] += smoothingFactor * (decoupled[i] - offset[i] - filtered[i]);
         }
 
-        if (!offsetsAcquired)
+        mutex.lock();
+
+        if (zeroOffsets)
         {
             memcpy(offset, decoupled, sizeof(decoupled));
-            offsetsAcquired = true;
+            zeroOffsets = false;
         }
 
-        mutex.lock();
         memcpy(shared, filtered, sizeof(filtered));
         dataReady = true;
         cv.notify_all();
@@ -246,47 +259,94 @@ int main()
 
     printf("ready\n");
 
-    initialize();
-
     Thread thread;
-    thread.start(callback(worker));
 
     CAN can(CAN_RD_PIN, CAN_TD_PIN, CAN_BAUDRATE);
+    can.filter(CAN_ID, 0x007F, CANStandard);
     can.reset();
 
-    CANMessage msg;
-    msg.len = 6;
+    CANMessage msg_in;
+    CANMessage msg_out_forces, msg_out_moments, msg_out_ack;
+
+    msg_out_forces.len = msg_out_moments.len = 6;
+    msg_out_forces.id = (JR3_GET_FORCES << 7) + CAN_ID;
+    msg_out_moments.id = (JR3_GET_MOMENTS << 7) + CAN_ID;
+
+    msg_out_ack.len = 0;
+    msg_out_ack.id = (JR3_ACK << 7) + CAN_ID;
 
     float temp[6];
     uint16_t fixed[6];
 
     while (true)
     {
-        mutex.lock();
-
-        if (!dataReady)
+        if (can.read(msg_in))
         {
-            cv.wait();
+            switch ((msg_in.id & 0x0780) >> 7)
+            {
+            case JR3_START:
+                printf("received JR3 start command\n");
+
+                if (!threadRunning)
+                {
+                    initialize();
+                    threadRunning = true;
+                    thread.start(callback(worker));
+                }
+
+                can.write(msg_out_ack);
+                break;
+            case JR3_STOP:
+                printf("received JR3 stop command\n");
+
+                if (threadRunning)
+                {
+                    threadRunning = false;
+                    thread.join();
+                }
+
+                can.write(msg_out_ack);
+                break;
+            case JR3_ZERO_OFFS:
+                printf("received JR3 zero offsets command\n");
+                mutex.lock();
+                zeroOffsets = true;
+                mutex.unlock();
+                can.write(msg_out_ack);
+                break;
+            case JR3_SET_FILTER:
+                printf("received JR3 set filter command\n");
+                // TODO
+                break;
+            }
         }
 
-        memcpy(temp, shared, sizeof(shared));
-        dataReady = false;
-        mutex.unlock();
-
-        for (int i = 0; i < 6; i++)
+        if (threadRunning)
         {
-            fixed[i] = fixedFromIEEE754(temp[i]);
+            mutex.lock();
+
+            if (!dataReady)
+            {
+                cv.wait();
+            }
+
+            memcpy(temp, shared, sizeof(shared));
+            dataReady = false;
+            mutex.unlock();
+
+            for (int i = 0; i < 6; i++)
+            {
+                fixed[i] = fixedFromIEEE754(temp[i]);
+            }
+
+            memcpy(msg_out.data, fixed, 6); // fx, fy, fz
+            can.write(msg_out_forces);
+
+            // wait_ns(100);
+
+            memcpy(msg_out.data, fixed + 3, 6); // mx, my, mz
+            can.write(msg_out_moments);
         }
-
-        memcpy(msg.data, fixed, 6); // fx, fy, fz
-        msg.id = 0x180 + CAN_ID;
-        can.write(msg);
-
-        // wait_ns(100);
-
-        memcpy(msg.data, fixed + 3, 6); // mx, my, mz
-        msg.id = 0x280 + CAN_ID;
-        can.write(msg);
 
         wait_us(1);
     }
