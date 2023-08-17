@@ -2,7 +2,6 @@
 #define __JR3_CONTROLLER_HPP__
 
 #include "mbed.h"
-#include "atomic_bool.h"
 #include "utils.hpp"
 
 #define DBG 0
@@ -22,6 +21,7 @@ public:
         {
             initialize();
             threadRunning = true;
+            stopRequested = false;
             thread.start(callback(this, &Jr3Controller::worker));
         }
     }
@@ -30,8 +30,12 @@ public:
     {
         if (threadRunning)
         {
-            threadRunning = false;
+            mutex.lock();
+            stopRequested = true;
+            mutex.unlock();
+
             thread.join();
+            threadRunning = false;
         }
     }
 
@@ -107,7 +111,8 @@ private:
     float calibrationCoeffs[36];
     float shared[6];
 
-    AtomicBool threadRunning {false};
+    bool threadRunning {false};
+    bool stopRequested {false};
     bool zeroOffsets {false};
     bool dataReady {false};
 
@@ -211,7 +216,7 @@ inline void Jr3Controller<ReaderT>::worker()
     // block until the first processed frame in the next loop is FORCE_X
     while ((jr3.readFrame() & 0x000F0000) >> 16 != VOLTAGE) {}
 
-    while (threadRunning)
+    while (true)
     {
         frame = jr3.readFrame();
         address = (frame & 0x000F0000) >> 16;
@@ -244,6 +249,12 @@ inline void Jr3Controller<ReaderT>::worker()
         }
 
         mutex.lock();
+
+        if (stopRequested)
+        {
+            mutex.unlock();
+            break;
+        }
 
         if (zeroOffsets)
         {
