@@ -57,7 +57,7 @@ public:
         }
         else
         {
-            smoothingFactor = 0.0f;
+            smoothingFactor = 1.0f; // unfiltered
         }
 
         mutex.unlock();
@@ -116,7 +116,7 @@ private:
     bool zeroOffsets {false};
     bool dataReady {false};
 
-    float smoothingFactor {0.0f};
+    float smoothingFactor {1.0f}; // unfiltered
 
     static constexpr double samplingPeriod = 15.625e-6; // [s], TODO: verify this
 };
