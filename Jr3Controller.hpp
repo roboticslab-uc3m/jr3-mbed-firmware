@@ -22,7 +22,7 @@ public:
             initialize();
             threadRunning = true;
             stopRequested = false;
-            thread.start(callback(this, &Jr3Controller::worker));
+            thread.start({this, &Jr3Controller::worker});
         }
     }
 
@@ -205,7 +205,9 @@ inline void Jr3Controller<ReaderT>::worker()
     memset(decoupled, 0, sizeof(decoupled));
     memset(filtered, 0, sizeof(filtered));
 
+    mutex.lock();
     float localSmoothingFactor = smoothingFactor;
+    mutex.unlock();
 
 #if DBG
     constexpr int STORAGE_SIZE = 500;
@@ -213,8 +215,7 @@ inline void Jr3Controller<ReaderT>::worker()
     int storageIndex = 0;
 #endif
 
-    // block until the first processed frame in the next loop is FORCE_X
-    while ((jr3.readFrame() & 0x000F0000) >> 16 != VOLTAGE) {}
+    jr3_channel expectedChannel = FORCE_X;
 
     while (true)
     {
@@ -223,15 +224,24 @@ inline void Jr3Controller<ReaderT>::worker()
 
 #if DBG
         storage[storageIndex++] = frame;
+#else
+        if (address != expectedChannel) // in case any channel is skipped
+        {
+            expectedChannel = FORCE_X;
+            continue;
+        }
 #endif
 
+#if DBG
         if (address >= FORCE_X && address <= MOMENT_Z)
+#endif
         {
             raw[address - 1] = fixedToIEEE754(frame & 0x0000FFFF);
         }
 
         if (address != MOMENT_Z)
         {
+            expectedChannel = static_cast<jr3_channel>(expectedChannel + 1);
             continue; // keep reading frames until we get all six axis values
         }
 
@@ -279,6 +289,8 @@ inline void Jr3Controller<ReaderT>::worker()
             storageIndex = 0;
         }
 #endif
+
+        expectedChannel = FORCE_X;
     }
 }
 
