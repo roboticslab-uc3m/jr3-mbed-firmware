@@ -1,6 +1,6 @@
 #include "utils.hpp"
 
-float fixedToIEEE754(int8_t exponent, uint16_t mantissa)
+float jr3FloatToIEEE754(int8_t exponent, uint16_t mantissa)
 {
     uint32_t temp = 0;
 
@@ -20,7 +20,7 @@ float fixedToIEEE754(int8_t exponent, uint16_t mantissa)
     return f;
 }
 
-uint16_t fixedFromIEEE754(float f)
+uint16_t jr3FixedFromIEEE754(float f)
 {
     uint32_t temp;
     memcpy(&temp, &f, 4);

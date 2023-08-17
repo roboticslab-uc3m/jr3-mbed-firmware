@@ -75,7 +75,7 @@ public:
 
             for (int i = 0; i < 6; i++)
             {
-                data[i] = fixedFromIEEE754(temp[i]);
+                data[i] = jr3FixedFromIEEE754(temp[i]);
             }
 
             return true;
@@ -159,7 +159,7 @@ inline void Jr3Controller<ReaderT>::initialize()
             memcpy(&mantissa, calibration + 10 + (i * 20) + (j * 3), 2);
             memcpy(&exponent, calibration + 12 + (i * 20) + (j * 3), 1);
 
-            calibrationCoeffs[(i * 6) + j] = fixedToIEEE754(exponent, mantissa);
+            calibrationCoeffs[(i * 6) + j] = jr3FloatToIEEE754(exponent, mantissa);
         }
 
         printf("%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
@@ -227,7 +227,7 @@ inline void Jr3Controller<ReaderT>::worker()
         if (address >= FORCE_X && address <= MOMENT_Z)
 #endif
         {
-            raw[address - 1] = fixedToIEEE754(frame & 0x0000FFFF);
+            raw[address - 1] = jr3FixedToIEEE754(frame & 0x0000FFFF);
         }
 
         if (address != MOMENT_Z)
