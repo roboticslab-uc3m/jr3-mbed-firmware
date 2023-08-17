@@ -7,19 +7,18 @@
 
 #define DBG 0
 
-constexpr float M_PI = 3.14159265358979323846;
+constexpr double M_PI = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
 
 template <typename ReaderT>
 class Jr3Controller
 {
 public:
-    void start()
+    void start(float cutOffFrequency)
     {
-        if (threadRunning)
-        {
-            // TODO: set filter
-        }
-        else
+        setFilter(cutOffFrequency);
+        calibrate();
+
+        if (!threadRunning)
         {
             initialize();
             threadRunning = true;
@@ -38,12 +37,26 @@ public:
 
     void calibrate()
     {
-        if (threadRunning)
+        mutex.lock();
+        zeroOffsets = true;
+        mutex.unlock();
+    }
+
+    void setFilter(float cutOffFrequency)
+    {
+        mutex.lock();
+
+        if (cutOffFrequency > 0.0f)
         {
-            mutex.lock();
-            zeroOffsets = true;
-            mutex.unlock();
+            // https://w.wiki/7Er6
+            smoothingFactor = samplingPeriod / (samplingPeriod + 1.0 / (2.0 * M_PI * cutOffFrequency));
         }
+        else
+        {
+            smoothingFactor = 0.0f;
+        }
+
+        mutex.unlock();
     }
 
     bool acquire(uint16_t * data)
@@ -98,11 +111,9 @@ private:
     bool zeroOffsets {false};
     bool dataReady {false};
 
-    static constexpr double samplingPeriod = 15.625e-6; // [s], TODO: verify this
-    static constexpr double cutOffFrequency = 500; // [Hz]
+    float smoothingFactor {0.0f};
 
-    // https://w.wiki/7Er6
-    const float smoothingFactor = samplingPeriod / (samplingPeriod + 1.0 / (2.0 * M_PI * cutOffFrequency));
+    static constexpr double samplingPeriod = 15.625e-6; // [s], TODO: verify this
 };
 
 template <typename ReaderT>
@@ -189,6 +200,8 @@ inline void Jr3Controller<ReaderT>::worker()
     memset(decoupled, 0, sizeof(decoupled));
     memset(filtered, 0, sizeof(filtered));
 
+    float localSmoothingFactor = smoothingFactor;
+
 #if DBG
     constexpr int STORAGE_SIZE = 500;
     int storage[STORAGE_SIZE];
@@ -227,7 +240,7 @@ inline void Jr3Controller<ReaderT>::worker()
             }
 
             // first-order low-pass IIR filter (as an exponential moving average)
-            filtered[i] += smoothingFactor * (decoupled[i] - offset[i] - filtered[i]);
+            filtered[i] += localSmoothingFactor * (decoupled[i] - offset[i] - filtered[i]);
         }
 
         mutex.lock();
@@ -241,6 +254,7 @@ inline void Jr3Controller<ReaderT>::worker()
         dataReady = true;
         cv.notify_all();
         memcpy(shared, filtered, sizeof(filtered));
+        localSmoothingFactor = smoothingFactor;
         mutex.unlock();
 
 #if DBG
