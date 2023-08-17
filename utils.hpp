@@ -3,15 +3,15 @@
 
 #include "mbed.h"
 
-float fixedToIEEE754(int8_t exponent, uint16_t mantissa);
+float jr3FloatToIEEE754(int8_t exponent, uint16_t mantissa);
 
-inline float fixedToIEEE754(uint16_t mantissa)
+inline float jr3FixedToIEEE754(uint16_t fixed)
 {
     // beware of integral promotion! https://stackoverflow.com/a/30474166
-    int8_t exponent = __CLZ((mantissa >> 15 ? ~mantissa : mantissa) & 0x0000FFFF) - 17;
-    return fixedToIEEE754(-exponent, mantissa << exponent);
+    int8_t exponent = __CLZ((fixed >> 15 ? ~fixed : fixed) & 0x0000FFFF) - 17;
+    return jr3FloatToIEEE754(-exponent, fixed << exponent);
 }
 
-uint16_t fixedFromIEEE754(float f);
+uint16_t jr3FixedFromIEEE754(float f);
 
 #endif // __UTILS_HPP__
