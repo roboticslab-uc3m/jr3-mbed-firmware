@@ -10,6 +10,9 @@ void setSystemFrequency(int clkDiv, int M, int N)
     // see also https://os.mbed.com/users/no2chem/code/ClockControl//file/b5d3bd64d2dc/main.cpp/
     // manual entry: Chapter 4: LPC17xx CLocking and power control
 
+    // example: overclock CPU from 96 MHz to 128 MHz
+    // setSystemFrequency(3, 16, 1);
+
     // current clock variables:
     // Fin = 12000000; // 12 MHz XTAL
     // M = (LPC_SC->PLL0CFG & 0xFFFF) + 1;
