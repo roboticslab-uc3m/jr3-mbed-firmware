@@ -22,6 +22,20 @@ enum jr3_can_ops : uint8_t
     JR3_ACK          // 0x380
 };
 
+float parseCutOffFrequency(const CANMessage & msg)
+{
+    if (msg.len == sizeof(float)) // 4
+    {
+        float temp;
+        memcpy(&temp, msg.data, sizeof(float));
+        return temp;
+    }
+    else
+    {
+        return 0.0f;
+    }
+}
+
 int main()
 {
     ThisThread::sleep_for(5s);
@@ -55,7 +69,7 @@ int main()
             {
             case JR3_START:
                 printf("received JR3 start command\n");
-                controller.start();
+                controller.start(parseCutOffFrequency(msg_in));
                 can.write(msg_out_ack);
                 break;
             case JR3_STOP:
@@ -70,7 +84,7 @@ int main()
                 break;
             case JR3_SET_FILTER:
                 printf("received JR3 set filter command\n");
-                // TODO
+                controller.setFilter(parseCutOffFrequency(msg_in));
                 break;
             }
         }
