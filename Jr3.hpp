@@ -31,13 +31,13 @@ private:
 
     volatile uint32_t * port_in;
 
-    static const unsigned int FRAME_SIZE = 20;
+    static constexpr unsigned int FRAME_SIZE = 20;
 };
 
 template <PortName portName, PinName clockPin, PinName dataPin>
 inline Jr3<portName, clockPin, dataPin>::Jr3()
 {
-    LPC_GPIO_TypeDef * port_reg = reinterpret_cast<LPC_GPIO_TypeDef *>(LPC_GPIO0_BASE + ((int)portName * 0x20));
+    auto * port_reg = reinterpret_cast<LPC_GPIO_TypeDef *>(LPC_GPIO0_BASE + ((int)portName * 0x20));
 
     for (int i = 0; i < 32; i++)
     {
