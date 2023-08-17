@@ -70,14 +70,7 @@ public:
             float temp[6];
 
             mutex.lock();
-
-            if (!dataReady)
-            {
-                cv.wait();
-            }
-
             memcpy(temp, shared, sizeof(shared));
-            dataReady = false;
             mutex.unlock();
 
             for (int i = 0; i < 6; i++)
@@ -106,7 +99,6 @@ private:
     ReaderT jr3;
     Thread thread;
     Mutex mutex;
-    ConditionVariable cv {mutex};
 
     float calibrationCoeffs[36];
     float shared[6];
@@ -114,7 +106,6 @@ private:
     bool threadRunning {false};
     bool stopRequested {false};
     bool zeroOffsets {false};
-    bool dataReady {false};
 
     float smoothingFactor {1.0f}; // unfiltered
 
@@ -272,8 +263,6 @@ inline void Jr3Controller<ReaderT>::worker()
             zeroOffsets = false;
         }
 
-        dataReady = true;
-        cv.notify_all();
         memcpy(shared, filtered, sizeof(filtered));
         localSmoothingFactor = smoothingFactor;
         mutex.unlock();
