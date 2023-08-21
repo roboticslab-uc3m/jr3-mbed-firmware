@@ -12,48 +12,56 @@
             "help": "data pin (F/T sensor)",
             "value": "p10"
         },
-        "can_jr3_id": {
-            "help": "CAN node ID (F/T sensor)",
-            "value": 1
-        },
-        "can_jr3_rd_pin": {
-            "help": "CAN RD pin (F/T sensor)",
-            "value": "p30"
-        },
-        "can_jr3_td_pin": {
-            "help": "CAN TD pin (F/T sensor)",
-            "value": "p29"
-        },
-        "can_jr3_baudrate": {
-            "help": "CAN baudrate (F/T sensor)",
-            "value": 1000000
-        },
         "lacquey_pwm_pin": {
-            "help": "PWM pin (gripper)",
+            "help": "PWM pin (gripper, if enabled)",
             "value": "p22"
         },
         "lacquey_fwd_pin": {
-            "help": "FWD pin (gripper)",
+            "help": "FWD pin (gripper, if enabled)",
             "value": "p23"
         },
         "lacquey_rev_pin": {
-            "help": "REV pin (gripper)",
+            "help": "REV pin (gripper, if enabled)",
             "value": "p24"
         },
-        "can_lacquey_id": {
-            "help": "CAN node ID (gripper)",
+        "can_id": {
+            "help": "primary CAN node ID",
+            "value": 1
+        },
+        "can_rd_pin": {
+            "help": "primary CAN RD pin",
+            "value": "p30"
+        },
+        "can_td_pin": {
+            "help": "primary CAN TD pin",
+            "value": "p29"
+        },
+        "can_baudrate": {
+            "help": "primary CAN baudrate",
+            "value": 1000000
+        },
+        "can_use_gripper": {
+            "help": "accept gripper commands on primary CAN channel",
+            "value": true
+        },
+        "can2_enable": {
+            "help": "enable secondary CAN channel (gripper only)",
+            "value": true
+        },
+        "can2_id": {
+            "help": "secondary CAN node ID (gripper only)",
             "value": 65
         },
-        "can_lacquey_rd_pin": {
-            "help": "CAN RD pin (gripper)",
+        "can2_rd_pin": {
+            "help": "secondary CAN RD pin (gripper only)",
             "value": "p10"
         },
-        "can_lacquey_td_pin": {
-            "help": "CAN TD pin (gripper)",
+        "can2_td_pin": {
+            "help": "secondary CAN TD pin (gripper only)",
             "value": "p9"
         },
-        "can_lacquey_baudrate": {
-            "help": "CAN baudrate (gripper)",
+        "can2_baudrate": {
+            "help": "secondary CAN baudrate (gripper only)",
             "value": 1000000
         }
     },
