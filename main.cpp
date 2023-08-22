@@ -125,6 +125,8 @@ int main()
 
         if (controller.acquire(data))
         {
+            // there is no need to put a delay between these two writes since the NXP has a triple transmit buffer
+
             memcpy(msg_out_forces.data, data, 6); // fx, fy, fz
             can.write(msg_out_forces);
 
