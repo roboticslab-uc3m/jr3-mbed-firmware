@@ -60,13 +60,11 @@ int main()
 
     CAN can(MBED_CONF_APP_CAN_RD_PIN, MBED_CONF_APP_CAN_TD_PIN);
     can.frequency(MBED_CONF_APP_CAN_BAUDRATE);
-    can.filter(MBED_CONF_APP_CAN_ID, 0x007F, CANStandard);
     can.reset();
 
 #if MBED_CONF_APP_CAN2_ENABLE
     CAN can2(MBED_CONF_APP_CAN2_RD_PIN, MBED_CONF_APP_CAN2_TD_PIN);
     can2.frequency(MBED_CONF_APP_CAN2_BAUDRATE);
-    can2.filter(MBED_CONF_APP_CAN2_ID, 0x007F, CANStandard);
     can2.reset();
 #endif
 
@@ -91,7 +89,7 @@ int main()
 
     while (true)
     {
-        if (can.read(msg_in))
+        if (can.read(msg_in) && (msg_in.id & 0x07F) == MBED_CONF_APP_CAN_ID)
         {
             switch ((msg_in.id & 0x0780) >> 7)
             {
@@ -135,7 +133,7 @@ int main()
         }
 
 #if MBED_CONF_APP_CAN2_ENABLE
-        if (can2.read(msg_in) && (msg_in.id & 0x0780) >> 7 == GRIPPER_PWM)
+        if (can2.read(msg_in) && (msg_in.id & 0x07F) == MBED_CONF_APP_CAN2_ID && (msg_in.id & 0x0780) >> 7 == GRIPPER_PWM)
         {
             processGripperCommand(msg_in, motor);
         }
