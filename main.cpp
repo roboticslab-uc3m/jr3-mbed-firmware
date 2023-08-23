@@ -135,7 +135,7 @@ int main()
         }
 
 #if MBED_CONF_APP_CAN2_ENABLE
-        if (can2.read(msg_in) && (msg_in.id & 0x07F) == MBED_CONF_APP_CAN2_ID && (msg_in.id & 0x0780) >> 7 == GRIPPER_PWM)
+        if (can2.read(msg_in) && msg_in.id == (GRIPPER_PWM << 7) + MBED_CONF_APP_CAN2_ID)
         {
             processGripperCommand(msg_in, motor);
         }
