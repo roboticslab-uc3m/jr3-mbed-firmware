@@ -14,7 +14,7 @@ void Jr3Controller::startSync()
     startSensorThread();
 }
 
-void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, float delay)
+void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs)
 {
     if (!asyncCallback || asyncCallback != cb)
     {
@@ -24,7 +24,7 @@ void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, float delay)
     }
 
     mutex.lock();
-    asyncDelay = delay;
+    asyncDelayUs = std::chrono::microseconds(delayUs);
     mutex.unlock();
 
     startSensorThread();
@@ -294,18 +294,18 @@ void Jr3Controller::doAsyncWork()
 
     mutex.lock();
     bool localStopRequested = stopRequested;
-    float localAsyncDelay = asyncDelay;
+    std::chrono::microseconds localAsyncDelayUs = asyncDelayUs;
     mutex.unlock();
 
     while (!localStopRequested)
     {
         acquireInternal(data);
         asyncCallback(data);
-        waiter.wait_for(std::chrono::duration<float>(localAsyncDelay)); // TODO
+        waiter.wait_for(localAsyncDelayUs);
 
         mutex.lock();
         localStopRequested = stopRequested;
-        localAsyncDelay = asyncDelay;
+        localAsyncDelayUs = asyncDelayUs;
         mutex.unlock();
     }
 }

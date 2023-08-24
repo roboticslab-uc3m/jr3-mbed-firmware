@@ -37,6 +37,20 @@ uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
     }
 }
 
+uint32_t parseAsyncDelay(const CANMessage & msg, size_t offset = 0)
+{
+    if (msg.len == sizeof(uint32_t))
+    {
+        uint32_t temp;
+        memcpy(&temp, msg.data + offset, sizeof(uint32_t));
+        return temp;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
 void processGripperCommand(const CANMessage & msg, Motor & motor)
 {
@@ -126,7 +140,7 @@ int main()
                     controller.startAsync([&can, &msg_out_forces, &msg_out_moments](uint16_t * data)
                     {
                         sendData(can, msg_out_forces, msg_out_moments, data);
-                    }, 0.0f); // TODO
+                    }, parseAsyncDelay(msg_in, sizeof(uint16_t)));
                     can.write(msg_out_ack);
                     break;
                 case JR3_STOP:
