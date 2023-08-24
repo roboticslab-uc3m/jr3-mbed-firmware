@@ -92,7 +92,8 @@ int main()
     msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
 
     using Jr3Reader = Jr3<MBED_CONF_APP_JR3_PORT, MBED_CONF_APP_JR3_CLOCK_PIN, MBED_CONF_APP_JR3_DATA_PIN>;
-    Jr3Controller<Jr3Reader> controller;
+    Jr3Reader jr3;
+    Jr3Controller controller({&jr3, &Jr3Reader::readFrame});
 
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
     Motor motor(MBED_CONF_APP_LACQUEY_PWM_PIN, MBED_CONF_APP_LACQUEY_FWD_PIN, MBED_CONF_APP_LACQUEY_REV_PIN);
