@@ -23,17 +23,17 @@ enum can_ops : uint8_t
 #endif
 };
 
-float parseCutOffFrequency(const CANMessage & msg)
+uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
 {
-    if (msg.len == 4)
+    if (msg.len == sizeof(uint16_t))
     {
-        float temp;
-        memcpy(&temp, msg.data, sizeof(float));
+        uint16_t temp;
+        memcpy(&temp, msg.data + offset, sizeof(uint16_t));
         return temp;
     }
     else
     {
-        return 0.0f;
+        return 0;
     }
 }
 
