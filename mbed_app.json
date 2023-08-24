@@ -1,68 +1,59 @@
 {
     "config": {
-        "jr3_port": {
+        "jr3-port": {
             "help": "NXP port both sensor data and clock pins belong to",
-            "value": "Port0"
+            "required": true
         },
-        "jr3_clock_pin": {
+        "jr3-clock-pin": {
             "help": "clock pin (F/T sensor)",
-            "value": "p9"
+            "required": true
         },
-        "jr3_data_pin": {
+        "jr3-data-pin": {
             "help": "data pin (F/T sensor)",
-            "value": "p10"
+            "required": true
         },
-        "lacquey_pwm_pin": {
-            "help": "PWM pin (gripper, if enabled)",
-            "value": "p22"
-        },
-        "lacquey_fwd_pin": {
-            "help": "FWD pin (gripper, if enabled)",
-            "value": "p23"
-        },
-        "lacquey_rev_pin": {
-            "help": "REV pin (gripper, if enabled)",
-            "value": "p24"
-        },
-        "can_id": {
+        "can-id": {
             "help": "primary CAN node ID",
-            "value": 1
+            "required": true
         },
-        "can_rd_pin": {
+        "can-rd-pin": {
             "help": "primary CAN RD pin",
-            "value": "p30"
+            "required": true
         },
-        "can_td_pin": {
+        "can-td-pin": {
             "help": "primary CAN TD pin",
-            "value": "p29"
+            "required": true
         },
-        "can_baudrate": {
+        "can-baudrate": {
             "help": "primary CAN baudrate",
-            "value": 1000000
+            "required": true
         },
-        "can_use_gripper": {
-            "help": "accept gripper commands on primary CAN channel",
-            "value": true
+        "can-use-gripper": {
+            "help": "accept gripper commands on primary CAN channel"
         },
-        "can2_enable": {
-            "help": "enable secondary CAN channel (gripper only)",
-            "value": true
+        "lacquey-pwm-pin": {
+            "help": "PWM pin (gripper, if enabled)"
         },
-        "can2_id": {
-            "help": "secondary CAN node ID (gripper only)",
-            "value": 65
+        "lacquey-fwd-pin": {
+            "help": "FWD pin (gripper, if enabled)"
         },
-        "can2_rd_pin": {
-            "help": "secondary CAN RD pin (gripper only)",
-            "value": "p10"
+        "lacquey-rev-pin": {
+            "help": "REV pin (gripper, if enabled)"
         },
-        "can2_td_pin": {
-            "help": "secondary CAN TD pin (gripper only)",
-            "value": "p9"
+        "can2-enable": {
+            "help": "enable secondary CAN channel (gripper only)"
         },
-        "can2_baudrate": {
-            "help": "secondary CAN baudrate (gripper only)",
-            "value": 1000000
+        "can2-id": {
+            "help": "secondary CAN node ID (gripper only)"
+        },
+        "can2-rd-pin": {
+            "help": "secondary CAN RD pin (gripper only)"
+        },
+        "can2-td-pin": {
+            "help": "secondary CAN TD pin (gripper only)"
+        },
+        "can2-baudrate": {
+            "help": "secondary CAN baudrate (gripper only)"
         }
     },
     "target_overrides": {
@@ -70,6 +61,19 @@
             "platform.minimal-printf-enable-floating-point": true,
             "platform.stdio-convert-newlines": false,
             "platform.stdio-convert-tty-newlines": false
+        },
+        "LPC176X": {
+            "app.jr3-port": "Port0",
+            "app.jr3-clock-pin": "p9",
+            "app.jr3-data-pin": "p10",
+            "app.lacquey-pwm-pin": "p22",
+            "app.lacquey-fwd-pin": "p23",
+            "app.lacquey-rev-pin": "p24",
+            "app.can-id": 1,
+            "app.can-rd-pin": "p30",
+            "app.can-td-pin": "p29",
+            "app.can-baudrate": 1000000,
+            "app.can-use-gripper": true
         }
     }
 }
