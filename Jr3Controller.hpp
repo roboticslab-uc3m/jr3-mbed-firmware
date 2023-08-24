@@ -9,7 +9,7 @@ class Jr3Controller
 public:
     Jr3Controller(Callback<uint32_t()> cb);
     void startSync();
-    void startAsync(Callback<void(uint16_t *)> cb, float delay);
+    void startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs);
     void stop();
     void calibrate();
     void setFilter(uint16_t cutOffFrequency);
@@ -39,7 +39,7 @@ private:
 
     float calibrationCoeffs[36];
     float shared[6];
-    float asyncDelay {0.0f}; // TODO
+    std::chrono::microseconds asyncDelayUs {0us};
 
     bool sensorThreadRunning {false};
     bool asyncThreadRunning {false};
