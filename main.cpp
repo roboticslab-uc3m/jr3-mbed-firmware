@@ -7,6 +7,8 @@
 # include "Motor.h"
 #endif
 
+#include "atomic_bool.h"
+
 enum can_ops : uint8_t
 {
     SYNC = 1,           // 0x080
@@ -85,7 +87,7 @@ int main()
 
     printf("ready\n");
 
-    CAN can(MBED_CONF_APP_CAN_RD_PIN, MBED_CONF_APP_CAN_TD_PIN);
+    RawCAN can(MBED_CONF_APP_CAN_RD_PIN, MBED_CONF_APP_CAN_TD_PIN);
     can.frequency(MBED_CONF_APP_CAN_BAUDRATE);
     can.reset();
 
@@ -113,60 +115,79 @@ int main()
     Motor motor(MBED_CONF_APP_LACQUEY_PWM_PIN, MBED_CONF_APP_LACQUEY_FWD_PIN, MBED_CONF_APP_LACQUEY_REV_PIN);
 #endif
 
+    CircularBuffer<CANMessage, 32> queue;
+    AtomicBool syncReceived = false;
+
+    can.attach([&can, &syncReceived, &queue]() {
+        CANMessage msg;
+
+        if (can.read(msg))
+        {
+            if (msg.id == SYNC << 7)
+            {
+                syncReceived = true;
+            }
+            else if ((msg.id & 0x07F) == MBED_CONF_APP_CAN_ID)
+            {
+                queue.push(msg);
+            }
+        }
+    });
+
     while (true)
     {
-        if (can.read(msg_in))
+        if (syncReceived)
         {
-            if (msg_in.id == SYNC << 7)
+            if (uint16_t data[6]; controller.acquire(data))
             {
-                if (uint16_t data[6]; controller.acquire(data))
+                sendData(can, msg_out_forces, msg_out_moments, data);
+            }
+
+            syncReceived = false;
+        }
+
+        while (queue.pop(msg_in))
+        {
+            switch ((msg_in.id & 0x0780) >> 7)
+            {
+            case JR3_START_SYNC:
+                printf("received JR3 start command (synchronous)\n");
+                controller.setFilter(parseCutOffFrequency(msg_in));
+                controller.startSync();
+                can.write(msg_out_ack);
+                break;
+            case JR3_START_ASYNC:
+                printf("received JR3 start command (asynchronous)\n");
+                controller.setFilter(parseCutOffFrequency(msg_in));
+                controller.startAsync([&can, &msg_out_forces, &msg_out_moments](uint16_t * data)
                 {
                     sendData(can, msg_out_forces, msg_out_moments, data);
-                }
-            }
-            else if ((msg_in.id & 0x07F) == MBED_CONF_APP_CAN_ID)
-            {
-                switch ((msg_in.id & 0x0780) >> 7)
-                {
-                case JR3_START_SYNC:
-                    printf("received JR3 start command (synchronous)\n");
-                    controller.setFilter(parseCutOffFrequency(msg_in));
-                    controller.startSync();
-                    can.write(msg_out_ack);
-                    break;
-                case JR3_START_ASYNC:
-                    printf("received JR3 start command (asynchronous)\n");
-                    controller.setFilter(parseCutOffFrequency(msg_in));
-                    controller.startAsync([&can, &msg_out_forces, &msg_out_moments](uint16_t * data)
-                    {
-                        sendData(can, msg_out_forces, msg_out_moments, data);
-                    }, parseAsyncDelay(msg_in, sizeof(uint16_t)));
-                    can.write(msg_out_ack);
-                    break;
-                case JR3_STOP:
-                    printf("received JR3 stop command\n");
-                    controller.stop();
-                    can.write(msg_out_ack);
-                    break;
-                case JR3_ZERO_OFFS:
-                    printf("received JR3 zero offsets command\n");
-                    controller.calibrate();
-                    can.write(msg_out_ack);
-                    break;
-                case JR3_SET_FILTER:
-                    printf("received JR3 set filter command\n");
-                    controller.setFilter(parseCutOffFrequency(msg_in));
-                    can.write(msg_out_ack);
-                    break;
+                }, parseAsyncDelay(msg_in, sizeof(uint16_t)));
+                can.write(msg_out_ack);
+                break;
+            case JR3_STOP:
+                printf("received JR3 stop command\n");
+                controller.stop();
+                can.write(msg_out_ack);
+                break;
+            case JR3_ZERO_OFFS:
+                printf("received JR3 zero offsets command\n");
+                controller.calibrate();
+                can.write(msg_out_ack);
+                break;
+            case JR3_SET_FILTER:
+                printf("received JR3 set filter command\n");
+                controller.setFilter(parseCutOffFrequency(msg_in));
+                can.write(msg_out_ack);
+                break;
 #if MBED_CONF_APP_CAN_USE_GRIPPER
-                case GRIPPER_PWM:
-                    processGripperCommand(msg_in, motor);
-                    break;
+            case GRIPPER_PWM:
+                processGripperCommand(msg_in, motor);
+                break;
 #endif
-                default:
-                    printf("unsupported command: %d\n", (msg_in.id & 0x0780) >> 7);
-                    break;
-                }
+            default:
+                printf("unsupported command: %d\n", (msg_in.id & 0x0780) >> 7);
+                break;
             }
         }
 
