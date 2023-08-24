@@ -12,7 +12,7 @@ public:
     void startAsync(Callback<void(uint16_t *)> cb, float delay);
     void stop();
     void calibrate();
-    void setFilter(float cutOffFrequency);
+    void setFilter(uint16_t cutOffFrequency);
     bool acquire(uint16_t * data);
 
 private:

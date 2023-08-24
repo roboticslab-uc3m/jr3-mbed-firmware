@@ -79,14 +79,16 @@ void Jr3Controller::calibrate()
     mutex.unlock();
 }
 
-void Jr3Controller::setFilter(float cutOffFrequency)
+void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 {
+    // the cutoff frequency is expressed in [0.1*Hz]
+
     mutex.lock();
 
-    if (cutOffFrequency > 0.0f)
+    if (cutOffFrequency != 0)
     {
         // https://w.wiki/7Er6
-        smoothingFactor = samplingPeriod / (samplingPeriod + 1.0 / (2.0 * M_PI * cutOffFrequency));
+        smoothingFactor = samplingPeriod / (samplingPeriod + 1.0 / (2.0 * M_PI * cutOffFrequency * 0.1));
     }
     else
     {
