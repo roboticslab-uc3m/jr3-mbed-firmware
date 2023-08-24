@@ -177,7 +177,8 @@ int main()
         }
 #endif
 
-        wait_us(1); // this spins the CPU
-        // ThisThread::sleep_for(1ms); // this actually sleeps the thread
+        // this is the minimum amount of time that actually sleeps the thread, use AccurateWaiter
+        // for the microsecond scale; wait_us(), on the contrary, spins the CPU
+        ThisThread::sleep_for(1ms);
     }
 }
