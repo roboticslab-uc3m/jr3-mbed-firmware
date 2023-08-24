@@ -3,6 +3,7 @@
 
 #include "mbed.h"
 #include "utils.hpp"
+#include "AccurateWaiter.h"
 
 #define DBG 0
 
@@ -12,30 +13,53 @@ template <typename ReaderT>
 class Jr3Controller
 {
 public:
-    void start(float cutOffFrequency)
+    void startSync()
     {
-        setFilter(cutOffFrequency);
-        calibrate();
+        startSensorThread();
+    }
 
-        if (!threadRunning)
+    void startAsync(Callback<void(uint16_t *)> cb, float delay)
+    {
+        if (!asyncCallback || asyncCallback != cb)
         {
-            initialize();
-            threadRunning = true;
-            stopRequested = false;
-            thread.start({this, &Jr3Controller::worker});
+            // to replace an existing callback, we need to shutdown both threads first
+            stop();
+            asyncCallback = cb;
+        }
+
+        mutex.lock();
+        asyncDelay = delay;
+        mutex.unlock();
+
+        startSensorThread();
+
+        if (!asyncThreadRunning)
+        {
+            asyncThread.start({this, &Jr3Controller::doAsyncWork});
+            asyncThreadRunning = true;
         }
     }
 
     void stop()
     {
-        if (threadRunning)
+        if (asyncThreadRunning)
         {
             mutex.lock();
             stopRequested = true;
             mutex.unlock();
 
-            thread.join();
-            threadRunning = false;
+            asyncThread.join();
+            asyncThreadRunning = false;
+        }
+
+        if (sensorThreadRunning)
+        {
+            mutex.lock();
+            stopRequested = true;
+            mutex.unlock();
+
+            sensorThread.join();
+            sensorThreadRunning = false;
         }
     }
 
@@ -65,27 +89,14 @@ public:
 
     bool acquire(uint16_t * data)
     {
-        if (threadRunning)
+        if (sensorThreadRunning)
         {
-            float temp[6];
-
-            mutex.lock();
-            memcpy(temp, shared, sizeof(shared));
-            mutex.unlock();
-
-            for (int i = 0; i < 6; i++)
-            {
-                data[i] = jr3FixedFromIEEE754(temp[i]);
-            }
-
+            acquireInternal(data);
             return true;
         }
 
         return false;
     }
-
-    void initialize();
-    void worker();
 
 private:
     enum jr3_channel : uint8_t
@@ -96,14 +107,37 @@ private:
         CALIBRATION
     };
 
+    void startSensorThread()
+    {
+        calibrate();
+
+        if (!sensorThreadRunning)
+        {
+            initialize();
+            sensorThreadRunning = true;
+            stopRequested = false;
+            sensorThread.start({this, &Jr3Controller::doSensorWork});
+        }
+    }
+
+    void initialize();
+    void acquireInternal(uint16_t * data);
+    void doSensorWork();
+    void doAsyncWork();
+
     ReaderT jr3;
-    Thread thread;
+    Thread sensorThread;
+    Thread asyncThread;
     Mutex mutex;
+    Callback<void(uint16_t *)> asyncCallback;
+    AccurateWaiter waiter;
 
     float calibrationCoeffs[36];
     float shared[6];
+    float asyncDelay {0.0f}; // TODO
 
-    bool threadRunning {false};
+    bool sensorThreadRunning {false};
+    bool asyncThreadRunning {false};
     bool stopRequested {false};
     bool zeroOffsets {false};
 
@@ -184,7 +218,22 @@ inline void Jr3Controller<ReaderT>::initialize()
 }
 
 template <typename ReaderT>
-inline void Jr3Controller<ReaderT>::worker()
+inline void Jr3Controller<ReaderT>::acquireInternal(uint16_t * data)
+{
+    float temp[6];
+
+    mutex.lock();
+    memcpy(temp, shared, sizeof(shared));
+    mutex.unlock();
+
+    for (int i = 0; i < 6; i++)
+    {
+        data[i] = jr3FixedFromIEEE754(temp[i]);
+    }
+}
+
+template <typename ReaderT>
+inline void Jr3Controller<ReaderT>::doSensorWork()
 {
     uint32_t frame;
     uint8_t address;
@@ -198,6 +247,7 @@ inline void Jr3Controller<ReaderT>::worker()
 
     mutex.lock();
     float localSmoothingFactor = smoothingFactor;
+    bool localStopRequested = stopRequested;
     mutex.unlock();
 
 #if DBG
@@ -208,7 +258,7 @@ inline void Jr3Controller<ReaderT>::worker()
 
     jr3_channel expectedChannel = FORCE_X;
 
-    while (true)
+    while (!localStopRequested)
     {
         frame = jr3.readFrame();
         address = (frame & 0x000F0000) >> 16;
@@ -251,12 +301,6 @@ inline void Jr3Controller<ReaderT>::worker()
 
         mutex.lock();
 
-        if (stopRequested)
-        {
-            mutex.unlock();
-            break;
-        }
-
         if (zeroOffsets)
         {
             memcpy(offset, decoupled, sizeof(decoupled));
@@ -265,6 +309,7 @@ inline void Jr3Controller<ReaderT>::worker()
 
         memcpy(shared, filtered, sizeof(filtered));
         localSmoothingFactor = smoothingFactor;
+        localStopRequested = stopRequested;
         mutex.unlock();
 
 #if DBG
@@ -280,6 +325,29 @@ inline void Jr3Controller<ReaderT>::worker()
 #endif
 
         expectedChannel = FORCE_X;
+    }
+}
+
+template <typename ReaderT>
+inline void Jr3Controller<ReaderT>::doAsyncWork()
+{
+    uint16_t data[6];
+
+    mutex.lock();
+    bool localStopRequested = stopRequested;
+    float localAsyncDelay = asyncDelay;
+    mutex.unlock();
+
+    while (!localStopRequested)
+    {
+        acquireInternal(data);
+        asyncCallback(data);
+        waiter.wait_for(localAsyncDelay);
+
+        mutex.lock();
+        localStopRequested = stopRequested;
+        localAsyncDelay = asyncDelay;
+        mutex.unlock();
     }
 }
 
