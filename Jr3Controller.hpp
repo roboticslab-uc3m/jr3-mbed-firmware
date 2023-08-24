@@ -30,8 +30,8 @@ private:
     void doSensorWork();
     void doAsyncWork();
 
-    Thread sensorThread;
-    Thread asyncThread;
+    Thread sensorThread {osPriorityNormal};
+    Thread asyncThread {osPriorityAboveNormal}; // increased priority, see AccurateWaiter::wait_for
     Mutex mutex;
     Callback<uint32_t()> readerCallback;
     Callback<void(uint16_t *)> asyncCallback;
