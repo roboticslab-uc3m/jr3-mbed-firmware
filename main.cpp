@@ -41,7 +41,7 @@ uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
 
 uint32_t parseAsyncDelay(const CANMessage & msg, size_t offset = 0)
 {
-    if (msg.len == sizeof(uint32_t))
+    if (msg.len == sizeof(uint32_t) + offset)
     {
         uint32_t temp;
         memcpy(&temp, msg.data + offset, sizeof(uint32_t));
