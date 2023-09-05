@@ -20,6 +20,7 @@ Jr3Controller::Jr3Controller(Callback<uint32_t()> cb)
 
 void Jr3Controller::startSync()
 {
+    stopAsyncThread();
     startSensorThread();
 }
 
@@ -39,13 +40,7 @@ void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs)
     mutex.unlock();
 
     startSensorThread();
-
-    if (!asyncThread)
-    {
-         // increased priority, see AccurateWaiter::wait_for
-        asyncThread = new Thread(osPriorityAboveNormal);
-        asyncThread->start({this, &Jr3Controller::doAsyncWork});
-    }
+    startAsyncThread();
 }
 
 void Jr3Controller::startSensorThread()
@@ -54,35 +49,62 @@ void Jr3Controller::startSensorThread()
 
     if (!sensorThread)
     {
+        mutex.lock();
+        sensorStopRequested = false;
+        mutex.unlock();
+
         initialize();
-        stopRequested = false;
+
         sensorThread = new Thread(osPriorityNormal);
         sensorThread->start({this, &Jr3Controller::doSensorWork});
     }
 }
 
-void Jr3Controller::stop()
+void Jr3Controller::startAsyncThread()
 {
-    if (asyncThread)
+    if (!asyncThread)
     {
         mutex.lock();
-        stopRequested = true;
+        asyncStopRequested = false;
         mutex.unlock();
 
-        asyncThread->join();
-        delete asyncThread;
-        asyncThread = nullptr;
+         // increased priority, see AccurateWaiter::wait_for
+        asyncThread = new Thread(osPriorityAboveNormal);
+        asyncThread->start({this, &Jr3Controller::doAsyncWork});
     }
+}
 
+void Jr3Controller::stop()
+{
+    stopAsyncThread();
+    stopSensorThread();
+}
+
+void Jr3Controller::stopSensorThread()
+{
     if (sensorThread)
     {
         mutex.lock();
-        stopRequested = true;
+        sensorStopRequested = true;
         mutex.unlock();
 
         sensorThread->join();
         delete sensorThread;
         sensorThread = nullptr;
+    }
+}
+
+void Jr3Controller::stopAsyncThread()
+{
+    if (asyncThread)
+    {
+        mutex.lock();
+        asyncStopRequested = true;
+        mutex.unlock();
+
+        asyncThread->join();
+        delete asyncThread;
+        asyncThread = nullptr;
     }
 }
 
@@ -95,7 +117,7 @@ void Jr3Controller::calibrate()
 
 void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 {
-    // the cutoff frequency is expressed in [0.1*Hz]
+    // the input cutoff frequency is expressed in [0.1*Hz]
     printf("setting new cutoff frequency: %.1f Hz\n", cutOffFrequency * 0.1);
 
     mutex.lock();
@@ -224,7 +246,7 @@ void Jr3Controller::doSensorWork()
 
     mutex.lock();
     float localSmoothingFactor = smoothingFactor;
-    bool localStopRequested = stopRequested;
+    bool localStopRequested = sensorStopRequested;
     mutex.unlock();
 
     jr3_channel expectedChannel = FORCE_X;
@@ -285,7 +307,7 @@ void Jr3Controller::doSensorWork()
 
         memcpy(shared, filtered, sizeof(filtered));
         localSmoothingFactor = smoothingFactor;
-        localStopRequested = stopRequested;
+        localStopRequested = sensorStopRequested;
         mutex.unlock();
 
         expectedChannel = FORCE_X;
@@ -301,7 +323,7 @@ void Jr3Controller::doAsyncWork()
     uint16_t data[6];
 
     mutex.lock();
-    bool localStopRequested = stopRequested;
+    bool localStopRequested = asyncStopRequested;
     std::chrono::microseconds localAsyncDelayUs = asyncDelayUs;
     mutex.unlock();
 
@@ -312,7 +334,7 @@ void Jr3Controller::doAsyncWork()
         waiter.wait_for(localAsyncDelayUs);
 
         mutex.lock();
-        localStopRequested = stopRequested;
+        localStopRequested = asyncStopRequested;
         localAsyncDelayUs = asyncDelayUs;
         mutex.unlock();
     }

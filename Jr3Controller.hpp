@@ -25,6 +25,9 @@ private:
     };
 
     void startSensorThread();
+    void startAsyncThread();
+    void stopSensorThread();
+    void stopAsyncThread();
     void initialize();
     void acquireInternal(uint16_t * data);
     void doSensorWork();
@@ -41,7 +44,8 @@ private:
     float shared[6];
     std::chrono::microseconds asyncDelayUs {0us};
 
-    bool stopRequested {false};
+    bool sensorStopRequested {false};
+    bool asyncStopRequested {false};
     bool zeroOffsets {false};
 
     float smoothingFactor {1.0f}; // unfiltered
