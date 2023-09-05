@@ -30,8 +30,8 @@ private:
     void doSensorWork();
     void doAsyncWork();
 
-    Thread sensorThread {osPriorityNormal};
-    Thread asyncThread {osPriorityAboveNormal}; // increased priority, see AccurateWaiter::wait_for
+    Thread * sensorThread {nullptr};
+    Thread * asyncThread {nullptr};
     Mutex mutex;
     Callback<uint32_t()> readerCallback;
     Callback<void(uint16_t *)> asyncCallback;
@@ -41,8 +41,6 @@ private:
     float shared[6];
     std::chrono::microseconds asyncDelayUs {0us};
 
-    bool sensorThreadRunning {false};
-    bool asyncThreadRunning {false};
     bool stopRequested {false};
     bool zeroOffsets {false};
 

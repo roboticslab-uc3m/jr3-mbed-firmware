@@ -40,10 +40,11 @@ void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs)
 
     startSensorThread();
 
-    if (!asyncThreadRunning)
+    if (!asyncThread)
     {
-        asyncThread.start({this, &Jr3Controller::doAsyncWork});
-        asyncThreadRunning = true;
+         // increased priority, see AccurateWaiter::wait_for
+        asyncThread = new Thread(osPriorityAboveNormal);
+        asyncThread->start({this, &Jr3Controller::doAsyncWork});
     }
 }
 
@@ -51,35 +52,37 @@ void Jr3Controller::startSensorThread()
 {
     calibrate();
 
-    if (!sensorThreadRunning)
+    if (!sensorThread)
     {
         initialize();
-        sensorThreadRunning = true;
         stopRequested = false;
-        sensorThread.start({this, &Jr3Controller::doSensorWork});
+        sensorThread = new Thread(osPriorityNormal);
+        sensorThread->start({this, &Jr3Controller::doSensorWork});
     }
 }
 
 void Jr3Controller::stop()
 {
-    if (asyncThreadRunning)
+    if (asyncThread)
     {
         mutex.lock();
         stopRequested = true;
         mutex.unlock();
 
-        asyncThread.join();
-        asyncThreadRunning = false;
+        asyncThread->join();
+        delete asyncThread;
+        asyncThread = nullptr;
     }
 
-    if (sensorThreadRunning)
+    if (sensorThread)
     {
         mutex.lock();
         stopRequested = true;
         mutex.unlock();
 
-        sensorThread.join();
-        sensorThreadRunning = false;
+        sensorThread->join();
+        delete sensorThread;
+        sensorThread = nullptr;
     }
 }
 
@@ -111,7 +114,7 @@ void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 
 bool Jr3Controller::acquire(uint16_t * data)
 {
-    if (sensorThreadRunning)
+    if (sensorThread)
     {
         acquireInternal(data);
         return true;
