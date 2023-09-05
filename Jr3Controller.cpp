@@ -5,6 +5,15 @@
 
 constexpr double M_PI = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
 
+#if DBG
+namespace
+{
+    constexpr int STORAGE_SIZE = 500;
+    int storage[STORAGE_SIZE];
+    int storageIndex = 0;
+}
+#endif
+
 Jr3Controller::Jr3Controller(Callback<uint32_t()> cb)
     : readerCallback(cb)
 {}
@@ -22,6 +31,8 @@ void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs)
         stop();
         asyncCallback = cb;
     }
+
+    printf("using a delay of %d us\n", delayUs);
 
     mutex.lock();
     asyncDelayUs = std::chrono::microseconds(delayUs);
@@ -195,6 +206,8 @@ void Jr3Controller::acquireInternal(uint16_t * data)
 
 void Jr3Controller::doSensorWork()
 {
+    printf("starting sensor thread\n");
+
     uint32_t frame;
     uint8_t address;
 
@@ -210,12 +223,6 @@ void Jr3Controller::doSensorWork()
     bool localStopRequested = stopRequested;
     mutex.unlock();
 
-#if DBG
-    constexpr int STORAGE_SIZE = 500;
-    int storage[STORAGE_SIZE];
-    int storageIndex = 0;
-#endif
-
     jr3_channel expectedChannel = FORCE_X;
 
     while (!localStopRequested)
@@ -225,20 +232,25 @@ void Jr3Controller::doSensorWork()
 
 #if DBG
         storage[storageIndex++] = frame;
-#else
+
+        if (storageIndex == STORAGE_SIZE)
+        {
+            for (int i = 0; i < STORAGE_SIZE; i++)
+            {
+                printf("[%03d] [%d] 0x%04X\n", i + 1, (storage[i] & 0x000F0000) >> 16, storage[i] & 0x0000FFFF);
+            }
+
+            storageIndex = 0;
+        }
+#endif
+
         if (address != expectedChannel) // in case any channel is skipped
         {
             expectedChannel = FORCE_X;
             continue;
         }
-#endif
 
-#if DBG
-        if (address >= FORCE_X && address <= MOMENT_Z)
-#endif
-        {
-            raw[address - 1] = jr3FixedToIEEE754(frame & 0x0000FFFF);
-        }
+        raw[address - 1] = jr3FixedToIEEE754(frame & 0x0000FFFF);
 
         if (address != MOMENT_Z)
         {
@@ -272,24 +284,16 @@ void Jr3Controller::doSensorWork()
         localStopRequested = stopRequested;
         mutex.unlock();
 
-#if DBG
-        if (storageIndex == STORAGE_SIZE)
-        {
-            for (int i = 0; i < STORAGE_SIZE; i++)
-            {
-                printf("[%03d] [%d] 0x%04X\n", i + 1, (storage[i] & 0x000F0000) >> 16, storage[i] & 0x0000FFFF);
-            }
-
-            storageIndex = 0;
-        }
-#endif
-
         expectedChannel = FORCE_X;
     }
+
+    printf("quitting sensor thread\n");
 }
 
 void Jr3Controller::doAsyncWork()
 {
+    printf("starting async thread\n");
+
     uint16_t data[6];
 
     mutex.lock();
@@ -308,4 +312,6 @@ void Jr3Controller::doAsyncWork()
         localAsyncDelayUs = asyncDelayUs;
         mutex.unlock();
     }
+
+    printf("quitting async thread\n");
 }
