@@ -96,6 +96,7 @@ void Jr3Controller::calibrate()
 void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 {
     // the cutoff frequency is expressed in [0.1*Hz]
+    printf("setting new cutoff frequency: %.1f Hz\n", cutOffFrequency * 0.1);
 
     mutex.lock();
 
