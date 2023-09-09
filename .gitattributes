@@ -1,0 +1,6 @@
+*.cpp text
+*.hpp text
+*.json text
+*.lib text
+*.md text
+*.txt text
