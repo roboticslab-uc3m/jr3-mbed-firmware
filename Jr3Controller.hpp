@@ -50,7 +50,7 @@ private:
 
     float smoothingFactor {1.0f}; // unfiltered
 
-    static constexpr double samplingPeriod = 15.625e-6; // [s], TODO: verify this
+    static constexpr double samplingPeriod = 128.5e-6; // [s]
 };
 
 #endif // __JR3_CONTROLLER_HPP__
