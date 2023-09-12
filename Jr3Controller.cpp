@@ -3,7 +3,7 @@
 
 #define DBG 0
 
-constexpr double M_PI = 3.1415926535897932384626433832795028841971693993751058209749445923078164062;
+constexpr float M_PI = 3.14159265358979323846f;
 
 #if DBG
 namespace
@@ -118,14 +118,14 @@ void Jr3Controller::calibrate()
 void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 {
     // the input cutoff frequency is expressed in [0.1*Hz]
-    printf("setting new cutoff frequency: %.1f Hz\n", cutOffFrequency * 0.1);
+    printf("setting new cutoff frequency: %.1f Hz\n", cutOffFrequency * 0.1f);
 
     mutex.lock();
 
     if (cutOffFrequency != 0)
     {
         // https://w.wiki/7Er6
-        smoothingFactor = samplingPeriod / (samplingPeriod + 1.0 / (2.0 * M_PI * cutOffFrequency * 0.1));
+        smoothingFactor = samplingPeriod / (samplingPeriod + 1.0f / (2.0f * M_PI * cutOffFrequency * 0.1f));
     }
     else
     {
@@ -189,19 +189,19 @@ void Jr3Controller::initialize()
             uint16_t mantissa;
             int8_t exponent;
 
-            memcpy(&mantissa, calibration + 10 + (i * 20) + (j * 3), 2);
-            memcpy(&exponent, calibration + 12 + (i * 20) + (j * 3), 1);
+            memcpy(&mantissa, calibration + 10 + (i * 20) + (j * 3), sizeof(uint16_t));
+            memcpy(&exponent, calibration + 12 + (i * 20) + (j * 3), sizeof(int8_t));
 
-            calibrationCoeffs[(i * 6) + j] = jr3FloatToIEEE754(exponent, mantissa);
+            calibrationCoeffs[(i * 6) + j] = jr3ToFixedPoint(mantissa, exponent);
         }
 
         printf("%0.6f %0.6f %0.6f %0.6f %0.6f %0.6f\n",
-                calibrationCoeffs[(i * 6)],
-                calibrationCoeffs[(i * 6) + 1],
-                calibrationCoeffs[(i * 6) + 2],
-                calibrationCoeffs[(i * 6) + 3],
-                calibrationCoeffs[(i * 6) + 4],
-                calibrationCoeffs[(i * 6) + 5]);
+               static_cast<float>(calibrationCoeffs[(i * 6)]),
+               static_cast<float>(calibrationCoeffs[(i * 6) + 1]),
+               static_cast<float>(calibrationCoeffs[(i * 6) + 2]),
+               static_cast<float>(calibrationCoeffs[(i * 6) + 3]),
+               static_cast<float>(calibrationCoeffs[(i * 6) + 4]),
+               static_cast<float>(calibrationCoeffs[(i * 6) + 5]));
     }
 
     printf("\nfull scales:\n\n");
@@ -209,7 +209,7 @@ void Jr3Controller::initialize()
     for (int i = 0; i < 6; i++)
     {
         uint16_t fullScales;
-        memcpy(&fullScales, calibration + 28 + (i * 20), 2);
+        memcpy(&fullScales, calibration + 28 + (i * 20), sizeof(uint16_t));
         printf("%d\n", fullScales);
     }
 
@@ -218,7 +218,7 @@ void Jr3Controller::initialize()
 
 void Jr3Controller::acquireInternal(uint16_t * data)
 {
-    float temp[6];
+    fixed_t temp[6];
 
     mutex.lock();
     memcpy(temp, shared, sizeof(shared));
@@ -226,7 +226,7 @@ void Jr3Controller::acquireInternal(uint16_t * data)
 
     for (int i = 0; i < 6; i++)
     {
-        data[i] = jr3FixedFromIEEE754(temp[i]);
+        data[i] = jr3FromFixedPoint(temp[i]);
     }
 }
 
@@ -237,7 +237,7 @@ void Jr3Controller::doSensorWork()
     uint32_t frame;
     uint8_t address;
 
-    float raw[6], offset[6], decoupled[6], filtered[6];
+    fixed_t raw[6], offset[6], decoupled[6], filtered[6];
 
     memset(raw, 0, sizeof(raw));
     memset(offset, 0, sizeof(offset));
@@ -245,7 +245,7 @@ void Jr3Controller::doSensorWork()
     memset(filtered, 0, sizeof(filtered));
 
     mutex.lock();
-    float localSmoothingFactor = smoothingFactor;
+    fixed_t localSmoothingFactor = smoothingFactor;
     bool localStopRequested = sensorStopRequested;
     mutex.unlock();
 
@@ -276,7 +276,7 @@ void Jr3Controller::doSensorWork()
             continue;
         }
 
-        raw[address - 1] = jr3FixedToIEEE754(frame & 0x0000FFFF);
+        raw[address - 1] = jr3ToFixedPoint(frame & 0x0000FFFF);
 
         if (address != MOMENT_Z)
         {
@@ -286,12 +286,7 @@ void Jr3Controller::doSensorWork()
 
         for (int i = 0; i < 6; i++)
         {
-            decoupled[i] = 0.0f;
-
-            for (int j = 0; j < 6; j++)
-            {
-                decoupled[i] += calibrationCoeffs[(i * 6) + j] * raw[j];
-            }
+            decoupled[i] = fixedpoint::multiply_accumulate(6, calibrationCoeffs + (i * 6), raw);
 
             // first-order low-pass IIR filter (as an exponential moving average)
             filtered[i] += localSmoothingFactor * (decoupled[i] - offset[i] - filtered[i]);

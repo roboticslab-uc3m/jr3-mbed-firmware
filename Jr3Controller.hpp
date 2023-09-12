@@ -3,6 +3,7 @@
 
 #include "mbed.h"
 #include "AccurateWaiter.h"
+#include "utils.hpp"
 
 class Jr3Controller
 {
@@ -40,17 +41,17 @@ private:
     Callback<void(uint16_t *)> asyncCallback;
     AccurateWaiter waiter;
 
-    float calibrationCoeffs[36];
-    float shared[6];
+    fixed_t calibrationCoeffs[36];
+    fixed_t shared[6];
     std::chrono::microseconds asyncDelayUs {0us};
 
     bool sensorStopRequested {false};
     bool asyncStopRequested {false};
     bool zeroOffsets {false};
 
-    float smoothingFactor {1.0f}; // unfiltered
+    fixed_t smoothingFactor {1.0f}; // default: unfiltered
 
-    static constexpr double samplingPeriod = 128.5e-6; // [s]
+    static constexpr float samplingPeriod = 128.5e-6f; // [s]
 };
 
 #endif // __JR3_CONTROLLER_HPP__
