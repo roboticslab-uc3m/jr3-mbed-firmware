@@ -24,7 +24,7 @@ void Jr3Controller::startSync()
     startSensorThread();
 }
 
-void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs)
+void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t periodUs)
 {
     if (!asyncCallback || asyncCallback != cb)
     {
@@ -33,10 +33,10 @@ void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs)
         asyncCallback = cb;
     }
 
-    printf("using a delay of %d us\n", delayUs);
+    printf("using a period of %d us\n", periodUs);
 
     mutex.lock();
-    asyncDelayUs = std::chrono::microseconds(delayUs);
+    asyncPeriodUs = std::chrono::microseconds(periodUs);
     mutex.unlock();
 
     startSensorThread();
@@ -133,6 +133,8 @@ void Jr3Controller::setFilter(uint16_t cutOffFrequency)
     }
 
     mutex.unlock();
+
+    printf("smoothing factor: %0.6f\n", static_cast<float>(smoothingFactor));
 }
 
 bool Jr3Controller::acquire(uint16_t * data)
@@ -319,18 +321,18 @@ void Jr3Controller::doAsyncWork()
 
     mutex.lock();
     bool localStopRequested = asyncStopRequested;
-    std::chrono::microseconds localAsyncDelayUs = asyncDelayUs;
+    std::chrono::microseconds localAsyncPeriodUs = asyncPeriodUs;
     mutex.unlock();
 
     while (!localStopRequested)
     {
         acquireInternal(data);
         asyncCallback(data);
-        waiter.wait_for(localAsyncDelayUs);
+        waiter.wait_for(localAsyncPeriodUs);
 
         mutex.lock();
         localStopRequested = asyncStopRequested;
-        localAsyncDelayUs = asyncDelayUs;
+        localAsyncPeriodUs = asyncPeriodUs;
         mutex.unlock();
     }
 

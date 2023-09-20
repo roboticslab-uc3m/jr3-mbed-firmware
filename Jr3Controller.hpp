@@ -10,7 +10,7 @@ class Jr3Controller
 public:
     Jr3Controller(Callback<uint32_t()> cb);
     void startSync();
-    void startAsync(Callback<void(uint16_t *)> cb, uint32_t delayUs);
+    void startAsync(Callback<void(uint16_t *)> cb, uint32_t periodUs);
     void stop();
     void calibrate();
     void setFilter(uint16_t cutOffFrequency);
@@ -43,7 +43,7 @@ private:
 
     fixed_t calibrationCoeffs[36];
     fixed_t shared[6];
-    std::chrono::microseconds asyncDelayUs {0us};
+    std::chrono::microseconds asyncPeriodUs {0us};
 
     bool sensorStopRequested {false};
     bool asyncStopRequested {false};
