@@ -11,17 +11,18 @@
 
 enum can_ops : uint8_t
 {
-    SYNC = 1,           // 0x080
-    JR3_START_SYNC,     // 0x100
-    JR3_START_ASYNC,    // 0x180
-    JR3_STOP,           // 0x200
-    JR3_ZERO_OFFS,      // 0x280
-    JR3_SET_FILTER,     // 0x300
-    JR3_GET_FORCES,     // 0x380
-    JR3_GET_MOMENTS,    // 0x400
-    JR3_ACK,            // 0x480
+    SYNC = 1,        // 0x080
+    JR3_BOOTUP,      // 0x100
+    JR3_ACK,         // 0x180
+    JR3_START_SYNC,  // 0x200
+    JR3_START_ASYNC, // 0x280
+    JR3_STOP,        // 0x300
+    JR3_ZERO_OFFS,   // 0x380
+    JR3_SET_FILTER,  // 0x400
+    JR3_GET_FORCES,  // 0x480
+    JR3_GET_MOMENTS, // 0x500
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
-    GRIPPER_PWM = 14    // 0x700
+    GRIPPER_PWM = 14 // 0x780
 #endif
 };
 
@@ -98,14 +99,15 @@ int main()
 #endif
 
     CANMessage msg_in;
-    CANMessage msg_out_forces, msg_out_moments, msg_out_ack;
+    CANMessage msg_out_bootup, msg_out_ack, msg_out_forces, msg_out_moments;
+
+    msg_out_bootup.len = msg_out_ack.len = 0;
+    msg_out_bootup.id = (JR3_BOOTUP << 7) + MBED_CONF_APP_CAN_ID;
+    msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
 
     msg_out_forces.len = msg_out_moments.len = 6;
     msg_out_forces.id = (JR3_GET_FORCES << 7) + MBED_CONF_APP_CAN_ID;
     msg_out_moments.id = (JR3_GET_MOMENTS << 7) + MBED_CONF_APP_CAN_ID;
-
-    msg_out_ack.len = 0;
-    msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
 
     using Jr3Reader = Jr3<MBED_CONF_APP_JR3_PORT, MBED_CONF_APP_JR3_CLOCK_PIN, MBED_CONF_APP_JR3_DATA_PIN>;
     Jr3Reader jr3;
@@ -133,6 +135,8 @@ int main()
             }
         }
     });
+
+    can.write(msg_out_bootup);
 
     while (true)
     {
