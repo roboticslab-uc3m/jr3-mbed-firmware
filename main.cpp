@@ -39,7 +39,7 @@ uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
     }
 }
 
-uint32_t parseAsyncDelay(const CANMessage & msg, size_t offset = 0)
+uint32_t parseAsyncPeriod(const CANMessage & msg, size_t offset = 0)
 {
     if (msg.len >= sizeof(uint32_t) + offset)
     {
@@ -162,7 +162,7 @@ int main()
                 controller.startAsync([&can, &msg_out_forces, &msg_out_moments](uint16_t * data)
                 {
                     sendData(can, msg_out_forces, msg_out_moments, data);
-                }, parseAsyncDelay(msg_in, sizeof(uint16_t)));
+                }, parseAsyncPeriod(msg_in, sizeof(uint16_t)));
                 can.write(msg_out_ack);
                 break;
             case JR3_STOP:
