@@ -26,6 +26,8 @@ enum can_ops : uint8_t
 #endif
 };
 
+typedef uint16_t counter_t;
+
 uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
 {
     if (msg.len >= sizeof(uint16_t) + offset)
@@ -73,13 +75,19 @@ void processGripperCommand(const CANMessage & msg, Motor & motor)
 
 void sendData(CAN & can, CANMessage & msg_forces, CANMessage & msg_moments, uint16_t * data)
 {
+    static counter_t counter = 0;
+
     memcpy(msg_forces.data, data, 6); // fx, fy, fz
+    memcpy(msg_forces.data + 6, &counter, sizeof(counter));
     can.write(msg_forces);
 
     // there is no need to put a delay between these two writes since the NXP has a triple transmit buffer
 
     memcpy(msg_moments.data, data + 3, 6); // mx, my, mz
+    memcpy(msg_moments.data + 6, &counter, sizeof(counter));
     can.write(msg_moments);
+
+    counter++;
 }
 
 int main()
@@ -105,7 +113,7 @@ int main()
     msg_out_bootup.id = (JR3_BOOTUP << 7) + MBED_CONF_APP_CAN_ID;
     msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
 
-    msg_out_forces.len = msg_out_moments.len = 6;
+    msg_out_forces.len = msg_out_moments.len = 6 + sizeof(counter_t);
     msg_out_forces.id = (JR3_GET_FORCES << 7) + MBED_CONF_APP_CAN_ID;
     msg_out_moments.id = (JR3_GET_MOMENTS << 7) + MBED_CONF_APP_CAN_ID;
 
