@@ -90,7 +90,7 @@ void sendData(CAN & can, CANMessage & msg_forces, CANMessage & msg_moments, uint
     counter++;
 }
 
-void sendAcknowledge(CAN & can, CANMessage & msg, Jr3Controller & controller)
+void sendAcknowledge(CAN & can, CANMessage & msg, const Jr3Controller & controller)
 {
     static constexpr uint8_t OK = 0x00;
     static constexpr uint8_t ERROR = 0x01;

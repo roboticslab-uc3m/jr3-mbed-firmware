@@ -151,7 +151,7 @@ void Jr3Controller::setFilter(uint16_t cutOffFrequency)
     printf("smoothing factor: %0.6f\n", static_cast<float>(smoothingFactor));
 }
 
-bool Jr3Controller::acquire(uint16_t * data)
+bool Jr3Controller::acquire(uint16_t * data) const
 {
     if (state == READY && sensorThread)
     {
@@ -239,7 +239,7 @@ void Jr3Controller::initialize()
     state = READY;
 }
 
-void Jr3Controller::acquireInternal(uint16_t * data)
+void Jr3Controller::acquireInternal(uint16_t * data) const
 {
     fixed_t temp[6];
 
