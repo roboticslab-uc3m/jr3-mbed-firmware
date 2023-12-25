@@ -19,8 +19,9 @@ enum can_ops : uint8_t
     JR3_STOP,        // 0x300
     JR3_ZERO_OFFS,   // 0x380
     JR3_SET_FILTER,  // 0x400
-    JR3_GET_FORCES,  // 0x480
-    JR3_GET_MOMENTS, // 0x500
+    JR3_RESET,       // 0x480
+    JR3_FORCES,      // 0x500
+    JR3_MOMENTS,     // 0x580
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
     GRIPPER_PWM = 14 // 0x780
 #endif
@@ -126,8 +127,8 @@ int main()
     msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
 
     msg_out_forces.len = msg_out_moments.len = 6 + sizeof(counter_t);
-    msg_out_forces.id = (JR3_GET_FORCES << 7) + MBED_CONF_APP_CAN_ID;
-    msg_out_moments.id = (JR3_GET_MOMENTS << 7) + MBED_CONF_APP_CAN_ID;
+    msg_out_forces.id = (JR3_FORCES << 7) + MBED_CONF_APP_CAN_ID;
+    msg_out_moments.id = (JR3_MOMENTS << 7) + MBED_CONF_APP_CAN_ID;
 
     using Jr3Reader = Jr3<MBED_CONF_APP_JR3_PORT, MBED_CONF_APP_JR3_CLOCK_PIN, MBED_CONF_APP_JR3_DATA_PIN>;
     Jr3Reader jr3;
@@ -207,6 +208,11 @@ int main()
             case JR3_SET_FILTER:
                 printf("received JR3 set filter command\n");
                 controller.setFilter(parseCutOffFrequency(msg_in));
+                sendAcknowledge(can, msg_out_ack, controller);
+                break;
+            case JR3_RESET:
+                printf("received JR3 reset command\n");
+                controller.initialize();
                 sendAcknowledge(can, msg_out_ack, controller);
                 break;
 #if MBED_CONF_APP_CAN_USE_GRIPPER
