@@ -12,8 +12,8 @@ class Jr3
 {
 public:
     Jr3();
-    uint32_t readFrame();
-    bool isConnected();
+    uint32_t readFrame() const;
+    bool isConnected() const;
 
 private:
     enum pin_state
@@ -25,10 +25,10 @@ private:
         DATA_HIGH_CLOCK_HIGH = (1UL << ((clockPin - P0_0) % 32)) | (1UL << ((dataPin - P0_0) % 32))
     };
 
-    void awaitNextFrame();
-    pin_state readPins();
-    bool readClock();
-    bool readData();
+    void awaitNextFrame() const;
+    pin_state readPins() const;
+    bool readClock() const;
+    bool readData() const;
 
     volatile uint32_t * port_in;
 
@@ -53,7 +53,7 @@ inline Jr3<portName, clockPin, dataPin>::Jr3()
 }
 
 template <PortName portName, PinName clockPin, PinName dataPin>
-inline uint32_t Jr3<portName, clockPin, dataPin>::readFrame()
+inline uint32_t Jr3<portName, clockPin, dataPin>::readFrame() const
 {
     pin_state pins;
     uint32_t frame = 0;
@@ -78,7 +78,7 @@ inline uint32_t Jr3<portName, clockPin, dataPin>::readFrame()
 }
 
 template <PortName portName, PinName clockPin, PinName dataPin>
-inline void Jr3<portName, clockPin, dataPin>::awaitNextFrame()
+inline void Jr3<portName, clockPin, dataPin>::awaitNextFrame() const
 {
     pin_state pins;
 
@@ -108,25 +108,25 @@ inline void Jr3<portName, clockPin, dataPin>::awaitNextFrame()
 }
 
 template <PortName portName, PinName clockPin, PinName dataPin>
-inline typename Jr3<portName, clockPin, dataPin>::pin_state Jr3<portName, clockPin, dataPin>::readPins()
+inline typename Jr3<portName, clockPin, dataPin>::pin_state Jr3<portName, clockPin, dataPin>::readPins() const
 {
     return static_cast<pin_state>(*port_in & DATA_HIGH_CLOCK_HIGH);
 }
 
 template <PortName portName, PinName clockPin, PinName dataPin>
-inline bool Jr3<portName, clockPin, dataPin>::readClock()
+inline bool Jr3<portName, clockPin, dataPin>::readClock() const
 {
     return static_cast<pin_state>(*port_in & DATA_LOW_CLOCK_HIGH);
 }
 
 template <PortName portName, PinName clockPin, PinName dataPin>
-inline bool Jr3<portName, clockPin, dataPin>::readData()
+inline bool Jr3<portName, clockPin, dataPin>::readData() const
 {
     return static_cast<pin_state>(*port_in & DATA_HIGH_CLOCK_LOW);
 }
 
 template <PortName portName, PinName clockPin, PinName dataPin>
-inline bool Jr3<portName, clockPin, dataPin>::isConnected()
+inline bool Jr3<portName, clockPin, dataPin>::isConnected() const
 {
     // determine that the sensor is connected by detecting a rising or falling edge on the clock signal
     static constexpr int MAX_ATTEMPTS = 1000; // timeout measured in loop iterations

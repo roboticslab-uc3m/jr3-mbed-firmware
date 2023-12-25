@@ -18,7 +18,7 @@ public:
     void stop();
     void calibrate();
     void setFilter(uint16_t cutOffFrequency);
-    bool acquire(uint16_t * data);
+    bool acquire(uint16_t * data) const;
     jr3_state getState() const;
 
 private:
@@ -34,13 +34,13 @@ private:
     void startAsyncThread();
     void stopSensorThread();
     void stopAsyncThread();
-    void acquireInternal(uint16_t * data);
+    void acquireInternal(uint16_t * data) const;
     void doSensorWork();
     void doAsyncWork();
 
     Thread * sensorThread {nullptr};
     Thread * asyncThread {nullptr};
-    Mutex mutex;
+    mutable Mutex mutex;
     Callback<uint32_t()> readerCallback;
     Callback<void(uint16_t *)> asyncCallback;
     AccurateWaiter waiter;
