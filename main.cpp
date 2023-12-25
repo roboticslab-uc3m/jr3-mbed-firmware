@@ -19,11 +19,12 @@ enum can_ops : uint8_t
     JR3_STOP,        // 0x300
     JR3_ZERO_OFFS,   // 0x380
     JR3_SET_FILTER,  // 0x400
-    JR3_RESET,       // 0x480
-    JR3_FORCES,      // 0x500
-    JR3_MOMENTS,     // 0x580
+    JR3_GET_FS,      // 0x480
+    JR3_RESET,       // 0x500
+    JR3_FORCES,      // 0x580
+    JR3_MOMENTS,     // 0x600
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
-    GRIPPER_PWM = 14 // 0x780
+    GRIPPER_PWM = 15 // 0x780
 #endif
 };
 
@@ -164,11 +165,13 @@ int main()
         can.write(msg_out_bootup);
     }
 
+    uint16_t data[6]; // helper buffer for misc FT data
+
     while (true)
     {
         if (syncReceived)
         {
-            if (uint16_t data[6]; controller.acquire(data))
+            if (controller.acquire(data))
             {
                 sendData(can, msg_out_forces, msg_out_moments, data);
             }
@@ -208,6 +211,12 @@ int main()
             case JR3_SET_FILTER:
                 printf("received JR3 set filter command\n");
                 controller.setFilter(parseCutOffFrequency(msg_in));
+                sendAcknowledge(can, msg_out_ack, controller);
+                break;
+            case JR3_GET_FS:
+                printf("received JR3 get full scales command\n");
+                controller.getFullScales(data);
+                sendData(can, msg_out_forces, msg_out_moments, data);
                 sendAcknowledge(can, msg_out_ack, controller);
                 break;
             case JR3_RESET:

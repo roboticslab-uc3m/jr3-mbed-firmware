@@ -151,6 +151,12 @@ void Jr3Controller::setFilter(uint16_t cutOffFrequency)
     printf("smoothing factor: %0.6f\n", static_cast<float>(smoothingFactor));
 }
 
+void Jr3Controller::getFullScales(uint16_t * data) const
+{
+    CHECK_STATE();
+    memcpy(data, fullScales, sizeof(fullScales));
+}
+
 bool Jr3Controller::acquire(uint16_t * data) const
 {
     if (state == READY && sensorThread)
@@ -235,12 +241,13 @@ void Jr3Controller::initialize()
 
     for (int i = 0; i < 6; i++)
     {
-        uint16_t fullScales;
-        memcpy(&fullScales, calibration + 28 + (i * 20), sizeof(uint16_t));
-        printf("%d\n", fullScales);
+        uint16_t fullScale;
+        memcpy(&fullScale, calibration + 28 + (i * 20), sizeof(uint16_t));
+        fullScales[i] = fullScale;
+        printf("%d ", fullScale);
     }
 
-    printf("\ninitialization done\n\n");
+    printf("\n\ninitialization done\n\n");
 
     state = READY;
 }

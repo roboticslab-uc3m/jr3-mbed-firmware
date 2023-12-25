@@ -18,6 +18,7 @@ public:
     void stop();
     void calibrate();
     void setFilter(uint16_t cutOffFrequency);
+    void getFullScales(uint16_t * data) const;
     bool acquire(uint16_t * data) const;
     jr3_state getState() const;
 
@@ -48,6 +49,7 @@ private:
 
     fixed_t calibrationCoeffs[36] {}; // value initialization to zero
     fixed_t shared[6] {}; // value initialization to zero
+    uint16_t fullScales[6] {}; // value initialization to zero
     std::chrono::microseconds asyncPeriodUs {0us};
 
     bool sensorStopRequested {false};
