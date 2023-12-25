@@ -26,7 +26,7 @@ enum can_ops : uint8_t
 #endif
 };
 
-typedef uint16_t counter_t;
+using counter_t = uint16_t;
 
 uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
 {
@@ -90,11 +90,21 @@ void sendData(CAN & can, CANMessage & msg_forces, CANMessage & msg_moments, uint
     counter++;
 }
 
+void sendAcknowledge(CAN & can, CANMessage & msg, Jr3Controller & controller)
+{
+    static constexpr uint8_t OK = 0x00;
+    static constexpr uint8_t ERROR = 0x01;
+
+    msg.data[0] = controller.getState() == Jr3Controller::READY ? OK : ERROR;
+
+    can.write(msg);
+}
+
 int main()
 {
-    ThisThread::sleep_for(5s);
+    ThisThread::sleep_for(2s);
 
-    printf("ready\n");
+    printf("booting\n");
 
     RawCAN can(MBED_CONF_APP_CAN_RD_PIN, MBED_CONF_APP_CAN_TD_PIN);
     can.frequency(MBED_CONF_APP_CAN_BAUDRATE);
@@ -109,8 +119,10 @@ int main()
     CANMessage msg_in;
     CANMessage msg_out_bootup, msg_out_ack, msg_out_forces, msg_out_moments;
 
-    msg_out_bootup.len = msg_out_ack.len = 0;
+    msg_out_bootup.len = 0;
     msg_out_bootup.id = (JR3_BOOTUP << 7) + MBED_CONF_APP_CAN_ID;
+
+    msg_out_ack.len = 1;
     msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
 
     msg_out_forces.len = msg_out_moments.len = 6 + sizeof(counter_t);
@@ -144,7 +156,12 @@ int main()
         }
     });
 
-    can.write(msg_out_bootup);
+    if (jr3.isConnected())
+    {
+        printf("JR3 sensor is connected\n");
+        controller.initialize(); // this blocks until the initialization is completed
+        can.write(msg_out_bootup);
+    }
 
     while (true)
     {
@@ -166,7 +183,7 @@ int main()
                 printf("received JR3 start command (synchronous)\n");
                 controller.setFilter(parseCutOffFrequency(msg_in));
                 controller.startSync();
-                can.write(msg_out_ack);
+                sendAcknowledge(can, msg_out_ack, controller);
                 break;
             case JR3_START_ASYNC:
                 printf("received JR3 start command (asynchronous)\n");
@@ -175,22 +192,22 @@ int main()
                 {
                     sendData(can, msg_out_forces, msg_out_moments, data);
                 }, parseAsyncPeriod(msg_in, sizeof(uint16_t)));
-                can.write(msg_out_ack);
+                sendAcknowledge(can, msg_out_ack, controller);
                 break;
             case JR3_STOP:
                 printf("received JR3 stop command\n");
                 controller.stop();
-                can.write(msg_out_ack);
+                sendAcknowledge(can, msg_out_ack, controller);
                 break;
             case JR3_ZERO_OFFS:
                 printf("received JR3 zero offsets command\n");
                 controller.calibrate();
-                can.write(msg_out_ack);
+                sendAcknowledge(can, msg_out_ack, controller);
                 break;
             case JR3_SET_FILTER:
                 printf("received JR3 set filter command\n");
                 controller.setFilter(parseCutOffFrequency(msg_in));
-                can.write(msg_out_ack);
+                sendAcknowledge(can, msg_out_ack, controller);
                 break;
 #if MBED_CONF_APP_CAN_USE_GRIPPER
             case GRIPPER_PWM:

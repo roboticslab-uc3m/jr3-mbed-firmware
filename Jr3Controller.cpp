@@ -3,6 +3,8 @@
 
 #define DBG 0
 
+#define CHECK_STATE() do { if (state != READY) { printf("not in ready state\n"); return; } } while (0);
+
 constexpr float M_PI = 3.14159265358979323846f;
 
 #if DBG
@@ -20,12 +22,15 @@ Jr3Controller::Jr3Controller(Callback<uint32_t()> cb)
 
 void Jr3Controller::startSync()
 {
+    CHECK_STATE();
     stopAsyncThread();
     startSensorThread();
 }
 
 void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t periodUs)
 {
+    CHECK_STATE();
+
     if (!asyncCallback || asyncCallback != cb)
     {
         // to replace an existing callback, we need to shutdown both threads first
@@ -76,6 +81,7 @@ void Jr3Controller::startAsyncThread()
 
 void Jr3Controller::stop()
 {
+    CHECK_STATE();
     stopAsyncThread();
     stopSensorThread();
 }
@@ -91,6 +97,10 @@ void Jr3Controller::stopSensorThread()
         sensorThread->join();
         delete sensorThread;
         sensorThread = nullptr;
+
+        mutex.lock();
+        memset(shared, 0, sizeof(shared));
+        mutex.unlock();
     }
 }
 
@@ -110,6 +120,8 @@ void Jr3Controller::stopAsyncThread()
 
 void Jr3Controller::calibrate()
 {
+    CHECK_STATE();
+
     mutex.lock();
     zeroOffsets = true;
     mutex.unlock();
@@ -117,6 +129,8 @@ void Jr3Controller::calibrate()
 
 void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 {
+    CHECK_STATE();
+
     // the input cutoff frequency is expressed in [0.1*Hz]
     printf("setting new cutoff frequency: %.1f Hz\n", cutOffFrequency * 0.1f);
 
@@ -139,13 +153,18 @@ void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 
 bool Jr3Controller::acquire(uint16_t * data)
 {
-    if (sensorThread)
+    if (state == READY && sensorThread)
     {
         acquireInternal(data);
         return true;
     }
 
     return false;
+}
+
+Jr3Controller::jr3_state Jr3Controller::getState() const
+{
+    return state;
 }
 
 void Jr3Controller::initialize()
@@ -215,9 +234,9 @@ void Jr3Controller::initialize()
         printf("%d\n", fullScales);
     }
 
-    printf("\ncalibration done\n\n");
+    printf("\ninitialization done\n\n");
 
-    memset(shared, 0, sizeof(shared));
+    state = READY;
 }
 
 void Jr3Controller::acquireInternal(uint16_t * data)
