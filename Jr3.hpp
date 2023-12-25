@@ -13,6 +13,7 @@ class Jr3
 public:
     Jr3();
     uint32_t readFrame();
+    bool isConnected();
 
 private:
     enum pin_state
@@ -122,6 +123,19 @@ template <PortName portName, PinName clockPin, PinName dataPin>
 inline bool Jr3<portName, clockPin, dataPin>::readData()
 {
     return static_cast<pin_state>(*port_in & DATA_HIGH_CLOCK_LOW);
+}
+
+template <PortName portName, PinName clockPin, PinName dataPin>
+inline bool Jr3<portName, clockPin, dataPin>::isConnected()
+{
+    // determine that the sensor is connected by detecting a rising or falling edge on the clock signal
+    static constexpr int MAX_ATTEMPTS = 1000; // timeout measured in loop iterations
+    const bool initial = readClock();
+    int n = 0;
+
+    while (n++ < MAX_ATTEMPTS && initial == readClock()) {}
+
+    return n < MAX_ATTEMPTS;
 }
 
 #endif // __JR3_HPP__

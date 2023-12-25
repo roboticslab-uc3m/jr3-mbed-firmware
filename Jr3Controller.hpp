@@ -8,13 +8,18 @@
 class Jr3Controller
 {
 public:
+    enum jr3_state
+    { UNINITIALIZED, READY };
+
     Jr3Controller(Callback<uint32_t()> cb);
+    void initialize();
     void startSync();
     void startAsync(Callback<void(uint16_t *)> cb, uint32_t periodUs);
     void stop();
     void calibrate();
     void setFilter(uint16_t cutOffFrequency);
     bool acquire(uint16_t * data);
+    jr3_state getState() const;
 
 private:
     enum jr3_channel : uint8_t
@@ -29,7 +34,6 @@ private:
     void startAsyncThread();
     void stopSensorThread();
     void stopAsyncThread();
-    void initialize();
     void acquireInternal(uint16_t * data);
     void doSensorWork();
     void doAsyncWork();
@@ -40,9 +44,10 @@ private:
     Callback<uint32_t()> readerCallback;
     Callback<void(uint16_t *)> asyncCallback;
     AccurateWaiter waiter;
+    jr3_state state {UNINITIALIZED};
 
-    fixed_t calibrationCoeffs[36];
-    fixed_t shared[6];
+    fixed_t calibrationCoeffs[36] {}; // value initialization to zero
+    fixed_t shared[6] {}; // value initialization to zero
     std::chrono::microseconds asyncPeriodUs {0us};
 
     bool sensorStopRequested {false};
