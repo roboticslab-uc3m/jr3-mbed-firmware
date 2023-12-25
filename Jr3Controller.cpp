@@ -169,6 +169,12 @@ Jr3Controller::jr3_state Jr3Controller::getState() const
 
 void Jr3Controller::initialize()
 {
+    // in case a re-initialization was requested
+    stopAsyncThread();
+    stopSensorThread();
+
+    state = UNINITIALIZED;
+
     uint8_t calibration[256];
     uint8_t calibrationIndex = 0;
     int calibrationCounter = 0;
