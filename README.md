@@ -21,16 +21,17 @@ Since the Mbed Online Compiler has been discontinued, development and compilatio
 | **zero offsets**    |  0x380  |     in    |          0         |                                                                                                   |
 | **set filter**      |  0x400  |     in    |          2         | cutoff frequency (as above)                                                                       |
 | **get full scales** |  0x480  |     in    |          0         | sends "force data" and "moment data" (see below)<br>with full scales instead of live measurements |
-| **reset**           |  0x500  |     in    |          0         |                                                                                                   |
-| force data          |  0x580  |    out    |          8         | (3x) 2 LSB bytes: Fx, Fy, Fz (integer, signed)<br>2 MSB bytes: integrity counter                  |
-| moment data         |  0x600  |    out    |          8         | (3x) 2 LSB bytes: Mx, My, Mz (integer, signed)<br>2 MSB bytes: integrity counter                  |
+| **get state**       |  0x500  |     in    |          0         |                                                                                                   |
+| **reset**           |  0x580  |     in    |          0         |                                                                                                   |
+| force data          |  0x600  |    out    |          8         | (3x) 2 LSB bytes: Fx, Fy, Fz (integer, signed)<br>2 MSB bytes: integrity counter                  |
+| moment data         |  0x680  |    out    |          8         | (3x) 2 LSB bytes: Mx, My, Mz (integer, signed)<br>2 MSB bytes: integrity counter                  |
 | gripper PWM         |  0x780  |     in    |          4         | PWM command between -100.0 and 100.0 (float)                                                      |
 
 Bolded incoming commands imply that the Mbed will respond with an acknowledge message (following other generated response messages, if any, as in "get full scales").
 
 ## Usage
 
-On bootup, the calibration matrix and full scales are queried from the sensor and stored for later use. If successful, the bootup message is broadcast. This may take a few seconds from initial power up. A failure means that there is no connection to the sensor. Re-initialization may be requested during normal operation through the "reset" command. If the initialization succeeds, the JR3 controller is in "ready" state, otherwise remains in "not initialized" state. All acknowledge messages carry this state information in their payload.
+On bootup, the calibration matrix and full scales are queried from the sensor and stored for later use. If successful, the bootup message is sent. This may take a few seconds from initial power up. A failure means that there is no connection to the sensor. Re-initialization may be requested during normal operation through the "reset" command. If the initialization succeeds, the JR3 controller is in "ready" state, otherwise it remains in "not initialized" state. All acknowledge messages carry this state information in their payload. The "get state" command is a no-op that can be used to ping the controller.
 
 The JR3 sensor operates in two modes: synchronous and asynchronous. Both entail that a background thread will be performing data acquisition, decoupling, offset removal and filtering at full sensor bandwidth (8 KHz per channel).
 
