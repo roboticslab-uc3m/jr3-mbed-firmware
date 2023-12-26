@@ -136,7 +136,7 @@ int main()
     Jr3Controller controller({&jr3, &Jr3Reader::readFrame});
 
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
-    Motor motor(MBED_CONF_APP_LACQUEY_PWM_PIN, MBED_CONF_APP_LACQUEY_FWD_PIN, MBED_CONF_APP_LACQUEY_REV_PIN);
+    Motor motor(MBED_CONF_APP_GRIPPER_PWM_PIN, MBED_CONF_APP_GRIPPER_FWD_PIN, MBED_CONF_APP_GRIPPER_REV_PIN);
 #endif
 
     mbed::CircularBuffer<mbed::CANMessage, 32> queue;

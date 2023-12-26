@@ -31,13 +31,13 @@
         "can-use-gripper": {
             "help": "accept gripper commands on primary CAN channel"
         },
-        "lacquey-pwm-pin": {
+        "gripper-pwm-pin": {
             "help": "PWM pin (gripper, if enabled)"
         },
-        "lacquey-fwd-pin": {
+        "gripper-fwd-pin": {
             "help": "FWD pin (gripper, if enabled)"
         },
-        "lacquey-rev-pin": {
+        "gripper-rev-pin": {
             "help": "REV pin (gripper, if enabled)"
         },
         "can2-enable": {
@@ -66,14 +66,11 @@
             "app.jr3-port": "Port0",
             "app.jr3-clock-pin": "p9",
             "app.jr3-data-pin": "p10",
-            "app.lacquey-pwm-pin": "p22",
-            "app.lacquey-fwd-pin": "p23",
-            "app.lacquey-rev-pin": "p24",
             "app.can-id": 1,
             "app.can-rd-pin": "p30",
             "app.can-td-pin": "p29",
             "app.can-baudrate": 1000000,
-            "app.can-use-gripper": true
+            "app.can-use-gripper": false
         }
     }
 }
