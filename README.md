@@ -47,6 +47,28 @@ Outgoing force and moment data requires post-processing on the receiver's side. 
 
 See [mbed-app.json](mbed_app.json) for a list of configurable parameters and their description. The project should be recompiled after any changes to this file.
 
+## Extra tools
+
+Most Linux kernels should support [SocketCAN](https://www.kernel.org/doc/html/next/networking/can.html). In order to create a network interface for a CAN channel with a baudrate of 1 Mbps, run the following command:
+
+```
+sudo ip link set can0 up txqueuelen 1000 type can bitrate 1000000
+```
+
+To send a CAN message, install the [can-utils](https://github.com/linux-can/can-utils) package (`apt install can-utils`) and run:
+
+```
+cansend can0 281#640010270000
+```
+
+This will start an ASYNC publisher on ID 1 with a period of 10 ms (10000 us = 0x2710) and a cutout frequency of 10 Hz (100 Hz*0.1 = 0x0064). Use the `candump can0` command on a different terminal to inspect traffic on the CAN bus, including any response from the Mbed.
+
+A helper Python script is provided for visual inspection of filtered data, [can-plotter.py](can-plotter.py). Example usage (channels: `fx`, `fy`, `fz`, `mx`, `my`, `mz`):
+
+```
+candump can0 | python3 can-plotter.py --id 1 --channel fz
+```
+
 ## See also
 
 - Alberto López Esteban, *Diseño y desarrollo de un módulo de conexión a CANopen de un sensor comercial fuerza/par*, bachelor's thesis, Universidad Carlos III de Madrid, 2011
