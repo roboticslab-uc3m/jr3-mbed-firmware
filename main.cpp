@@ -165,6 +165,10 @@ int main()
         controller.initialize(); // this blocks until the initialization is completed
         can.write(msg_out_bootup);
     }
+    else
+    {
+        printf("JR3 sensor is not connected\n");
+    }
 
     uint16_t data[6]; // helper buffer for misc FT data
 
