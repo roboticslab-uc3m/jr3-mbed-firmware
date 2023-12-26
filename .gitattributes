@@ -3,4 +3,5 @@
 *.json text
 *.lib text
 *.md text
+*.py text
 *.txt text
