@@ -30,7 +30,7 @@ enum can_ops : uint8_t
 
 using counter_t = uint16_t;
 
-uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
+uint16_t parseCutOffFrequency(const mbed::CANMessage & msg, size_t offset = 0)
 {
     if (msg.len >= sizeof(uint16_t) + offset)
     {
@@ -44,7 +44,7 @@ uint16_t parseCutOffFrequency(const CANMessage & msg, size_t offset = 0)
     }
 }
 
-uint32_t parseAsyncPeriod(const CANMessage & msg, size_t offset = 0)
+uint32_t parseAsyncPeriod(const mbed::CANMessage & msg, size_t offset = 0)
 {
     if (msg.len >= sizeof(uint32_t) + offset)
     {
@@ -59,7 +59,7 @@ uint32_t parseAsyncPeriod(const CANMessage & msg, size_t offset = 0)
 }
 
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
-void processGripperCommand(const CANMessage & msg, Motor & motor)
+void processGripperCommand(const mbed::CANMessage & msg, Motor & motor)
 {
     if (msg.len == sizeof(float))
     {
@@ -75,7 +75,7 @@ void processGripperCommand(const CANMessage & msg, Motor & motor)
 }
 #endif
 
-void sendData(CAN & can, CANMessage & msg_forces, CANMessage & msg_moments, uint16_t * data)
+void sendData(mbed::CAN & can, mbed::CANMessage & msg_forces, mbed::CANMessage & msg_moments, uint16_t * data)
 {
     static counter_t counter = 0;
 
@@ -92,7 +92,7 @@ void sendData(CAN & can, CANMessage & msg_forces, CANMessage & msg_moments, uint
     counter++;
 }
 
-void sendAcknowledge(CAN & can, CANMessage & msg, const Jr3Controller & controller)
+void sendAcknowledge(mbed::CAN & can, mbed::CANMessage & msg, const Jr3Controller & controller)
 {
     static constexpr uint8_t OK = 0x00;
     static constexpr uint8_t ERROR = 0x01;
@@ -104,22 +104,22 @@ void sendAcknowledge(CAN & can, CANMessage & msg, const Jr3Controller & controll
 
 int main()
 {
-    ThisThread::sleep_for(2s);
+    rtos::ThisThread::sleep_for(2s);
 
     printf("booting\n");
 
-    RawCAN can(MBED_CONF_APP_CAN_RD_PIN, MBED_CONF_APP_CAN_TD_PIN);
+    mbed::RawCAN can(MBED_CONF_APP_CAN_RD_PIN, MBED_CONF_APP_CAN_TD_PIN);
     can.frequency(MBED_CONF_APP_CAN_BAUDRATE);
     can.reset();
 
 #if MBED_CONF_APP_CAN2_ENABLE
-    CAN can2(MBED_CONF_APP_CAN2_RD_PIN, MBED_CONF_APP_CAN2_TD_PIN);
+    mbed::CAN can2(MBED_CONF_APP_CAN2_RD_PIN, MBED_CONF_APP_CAN2_TD_PIN);
     can2.frequency(MBED_CONF_APP_CAN2_BAUDRATE);
     can2.reset();
 #endif
 
-    CANMessage msg_in;
-    CANMessage msg_out_bootup, msg_out_ack, msg_out_forces, msg_out_moments;
+    mbed::CANMessage msg_in;
+    mbed::CANMessage msg_out_bootup, msg_out_ack, msg_out_forces, msg_out_moments;
 
     msg_out_bootup.len = 0;
     msg_out_bootup.id = (JR3_BOOTUP << 7) + MBED_CONF_APP_CAN_ID;
@@ -139,11 +139,11 @@ int main()
     Motor motor(MBED_CONF_APP_LACQUEY_PWM_PIN, MBED_CONF_APP_LACQUEY_FWD_PIN, MBED_CONF_APP_LACQUEY_REV_PIN);
 #endif
 
-    CircularBuffer<CANMessage, 32> queue;
+    mbed::CircularBuffer<mbed::CANMessage, 32> queue;
     AtomicBool syncReceived = false;
 
     can.attach([&can, &syncReceived, &queue]() {
-        CANMessage msg;
+        mbed::CANMessage msg;
 
         if (can.read(msg))
         {
@@ -244,6 +244,6 @@ int main()
 
         // this is the minimum amount of time that actually sleeps the thread, use AccurateWaiter
         // for the microsecond scale; wait_us(), on the contrary, spins the CPU
-        ThisThread::sleep_for(1ms);
+        rtos::ThisThread::sleep_for(1ms);
     }
 }

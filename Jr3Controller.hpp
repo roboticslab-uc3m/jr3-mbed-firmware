@@ -2,6 +2,7 @@
 #define __JR3_CONTROLLER_HPP__
 
 #include "mbed.h"
+#include "chrono"
 #include "AccurateWaiter.h"
 #include "utils.hpp"
 
@@ -11,10 +12,10 @@ public:
     enum jr3_state
     { UNINITIALIZED, READY };
 
-    Jr3Controller(Callback<uint32_t()> cb);
+    Jr3Controller(mbed::Callback<uint32_t()> cb);
     void initialize();
     void startSync();
-    void startAsync(Callback<void(uint16_t *)> cb, uint32_t periodUs);
+    void startAsync(mbed::Callback<void(uint16_t *)> cb, uint32_t periodUs);
     void stop();
     void calibrate();
     void setFilter(uint16_t cutOffFrequency);
@@ -39,11 +40,11 @@ private:
     void doSensorWork();
     void doAsyncWork();
 
-    Thread * sensorThread {nullptr};
-    Thread * asyncThread {nullptr};
-    mutable Mutex mutex;
-    Callback<uint32_t()> readerCallback;
-    Callback<void(uint16_t *)> asyncCallback;
+    rtos::Thread * sensorThread {nullptr};
+    rtos::Thread * asyncThread {nullptr};
+    mutable rtos::Mutex mutex;
+    mbed::Callback<uint32_t()> readerCallback;
+    mbed::Callback<void(uint16_t *)> asyncCallback;
     AccurateWaiter waiter;
     jr3_state state {UNINITIALIZED};
 

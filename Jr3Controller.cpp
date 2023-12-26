@@ -16,7 +16,7 @@ namespace
 }
 #endif
 
-Jr3Controller::Jr3Controller(Callback<uint32_t()> cb)
+Jr3Controller::Jr3Controller(mbed::Callback<uint32_t()> cb)
     : readerCallback(cb)
 {}
 
@@ -27,7 +27,7 @@ void Jr3Controller::startSync()
     startSensorThread();
 }
 
-void Jr3Controller::startAsync(Callback<void(uint16_t *)> cb, uint32_t periodUs)
+void Jr3Controller::startAsync(mbed::Callback<void(uint16_t *)> cb, uint32_t periodUs)
 {
     CHECK_STATE();
 
@@ -60,7 +60,7 @@ void Jr3Controller::startSensorThread()
 
         initialize();
 
-        sensorThread = new Thread(osPriorityNormal);
+        sensorThread = new rtos::Thread(osPriorityNormal);
         sensorThread->start({this, &Jr3Controller::doSensorWork});
     }
 }
@@ -74,7 +74,7 @@ void Jr3Controller::startAsyncThread()
         mutex.unlock();
 
          // increased priority, see AccurateWaiter::wait_for
-        asyncThread = new Thread(osPriorityAboveNormal);
+        asyncThread = new rtos::Thread(osPriorityAboveNormal);
         asyncThread->start({this, &Jr3Controller::doAsyncWork});
     }
 }
@@ -208,9 +208,9 @@ void Jr3Controller::initialize()
     for (int i = 0; i < 256; i += 8)
     {
         printf("[%02X] %02X %02X %02X %02X %02X %02X %02X %02X\n",
-                i,
-                calibration[i], calibration[i + 1], calibration[i + 2], calibration[i + 3],
-                calibration[i + 4], calibration[i + 5], calibration[i + 6], calibration[i + 7]);
+               i,
+               calibration[i], calibration[i + 1], calibration[i + 2], calibration[i + 3],
+               calibration[i + 4], calibration[i + 5], calibration[i + 6], calibration[i + 7]);
     }
 
     printf("\ncalibration matrix:\n\n");
