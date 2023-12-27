@@ -130,15 +130,15 @@ void Jr3Controller::setFilter(uint16_t cutOffFrequency)
 {
     CHECK_STATE();
 
-    // the input cutoff frequency is expressed in [0.1*Hz]
-    printf("setting new cutoff frequency: %.1f Hz\n", cutOffFrequency * 0.1f);
+    // the input cutoff frequency is expressed in [0.01*Hz]
+    printf("setting new cutoff frequency: %.1f Hz\n", cutOffFrequency * 0.01f);
 
     mutex.lock();
 
     if (cutOffFrequency != 0)
     {
         // https://w.wiki/7Er6
-        smoothingFactor = samplingPeriod / (samplingPeriod + 1.0f / (2.0f * M_PI * cutOffFrequency * 0.1f));
+        smoothingFactor = samplingPeriod / (samplingPeriod + 1.0f / (2.0f * M_PI * cutOffFrequency * 0.01f));
     }
     else
     {
