@@ -33,6 +33,10 @@ def handler(signum, frame):
 signal.signal(signal.SIGINT, handler)
 signal.signal(signal.SIGTERM, handler)
 
+def hex_to_signed_int(data):
+    hex = int(data[1] + data[0], 16)
+    return hex - 2**16 if hex > 2**15 - 1 else hex
+
 def do_read():
     global value, v_min, v_max
 
@@ -48,17 +52,17 @@ def do_read():
             data = m.group(4).strip().split(' ')
 
             if args.channel == 'fx' and op == OP_FORCES:
-                value = int(data[1] + data[0], 16) * FULL_SCALES[0]
+                value = hex_to_signed_int(data[0:2]) * FULL_SCALES[0]
             elif args.channel == 'fy' and op == OP_FORCES:
-                value = int(data[3] + data[2], 16) * FULL_SCALES[1]
+                value = hex_to_signed_int(data[2:4]) * FULL_SCALES[1]
             elif args.channel == 'fz' and op == OP_FORCES:
-                value = int(data[5] + data[4], 16) * FULL_SCALES[2]
+                value = hex_to_signed_int(data[4:6]) * FULL_SCALES[2]
             elif args.channel == 'mx' and op == OP_MOMENTS:
-                value = int(data[1] + data[0], 16) * FULL_SCALES[3]
+                value = hex_to_signed_int(data[0:2]) * FULL_SCALES[3]
             elif args.channel == 'my' and op == OP_MOMENTS:
-                value = int(data[3] + data[2], 16) * FULL_SCALES[4]
+                value = hex_to_signed_int(data[2:4]) * FULL_SCALES[4]
             elif args.channel == 'mz' and op == OP_MOMENTS:
-                value = int(data[5] + data[4], 16) * FULL_SCALES[5]
+                value = hex_to_signed_int(data[4:6]) * FULL_SCALES[5]
             else:
                 continue
 
