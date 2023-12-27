@@ -52,8 +52,6 @@ void Jr3Controller::startAsync(mbed::Callback<void(uint16_t *)> cb, uint16_t cut
 
 void Jr3Controller::startSensorThread()
 {
-    calibrate();
-
     if (!sensorThread)
     {
         mutex.lock();
@@ -249,7 +247,6 @@ void Jr3Controller::initialize()
 
     printf("\n\ninitialization done\n\n");
 
-    zeroOffsets = true;
     state = READY;
 }
 
@@ -274,12 +271,13 @@ void Jr3Controller::doSensorWork()
     uint32_t frame;
     uint8_t address;
 
-    fixed_t raw[6], offset[6], decoupled[6], filtered[6];
+    fixed_t raw[6], offset[6], decoupled[6], filtered[6], normalized[6];
 
     memset(raw, 0, sizeof(raw));
     memset(offset, 0, sizeof(offset));
     memset(decoupled, 0, sizeof(decoupled));
     memset(filtered, 0, sizeof(filtered));
+    memset(normalized, 0, sizeof(normalized));
 
     mutex.lock();
     fixed_t localSmoothingFactor = smoothingFactor;
@@ -326,7 +324,9 @@ void Jr3Controller::doSensorWork()
             decoupled[i] = fixedpoint::multiply_accumulate(6, calibrationCoeffs + (i * 6), raw);
 
             // first-order low-pass IIR filter (as an exponential moving average)
-            filtered[i] += localSmoothingFactor * (decoupled[i] - filtered[i]) - offset[i];
+            filtered[i] += localSmoothingFactor * (decoupled[i] - filtered[i]);
+
+            normalized[i] = filtered[i] - offset[i];
         }
 
         mutex.lock();
@@ -339,7 +339,7 @@ void Jr3Controller::doSensorWork()
         }
         else
         {
-            memcpy(shared, filtered, sizeof(filtered));
+            memcpy(shared, normalized, sizeof(normalized));
         }
 
         localSmoothingFactor = smoothingFactor;

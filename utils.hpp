@@ -5,7 +5,7 @@
 #include "fixed_class.h"
 
 constexpr int JR3_PRECISION = 15;
-constexpr int FIXED_PRECISION = 31;
+constexpr int FIXED_PRECISION = 30; // pick lower values if saturation occurs
 
 using fixed_t = fixedpoint::fixed_point<FIXED_PRECISION>; // (-1, 1]
 
