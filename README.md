@@ -15,7 +15,7 @@ Since the Mbed Online Compiler has been discontinued, development and compilatio
 | sync                |  0x080  |     in    |          0         |                                                                                                   |
 | bootup              |  0x100  |    out    |          0         |                                                                                                   |
 | acknowledge         |  0x180  |    out    |          1         | 0x00: sensor ready<br>0x01: not initialized                                                       |
-| **start sync**      |  0x200  |     in    |          2         | low-pass filter cutoff frequency in 0.1*Hz (integer)<br>(e.g. 102 = 10.2 Hz)                      |
+| **start sync**      |  0x200  |     in    |          2         | low-pass filter cutoff frequency in 0.01*Hz (integer)<br>(e.g. 1025 = 10.25 Hz)                   |
 | **start async**     |  0x280  |     in    |          6         | 2 LSB bytes: cutoff frequency (as above)<br>4 MSB bytes: period in us (integer)                   |
 | **stop**            |  0x300  |     in    |          0         |                                                                                                   |
 | **zero offsets**    |  0x380  |     in    |          0         |                                                                                                   |
@@ -59,10 +59,10 @@ sudo ip link set can0 up txqueuelen 1000 type can bitrate 1000000
 To send a CAN message, install the [can-utils](https://github.com/linux-can/can-utils) package (`apt install can-utils`) and run:
 
 ```
-cansend can0 281#640010270000
+cansend can0 281#C80010270000
 ```
 
-This will start an ASYNC publisher on ID 1 with a period of 10 ms (10000 us = 0x2710) and a cutout frequency of 10 Hz (100 Hz*0.1 = 0x0064). Use the `candump can0` command on a different terminal to inspect traffic on the CAN bus, including any response from the Mbed.
+This will start an ASYNC publisher on ID 1 with a period of 10 ms (10000 us = 0x2710) and a cutoff frequency of 2 Hz (200 Hz*0.01 = 0x00C8). Use the `candump can0` command on a different terminal to inspect traffic on the CAN bus, including any response from the Mbed.
 
 A helper Python script is provided for visual inspection of filtered data, [can-plotter.py](can-plotter.py). Example usage (channels: `fx`, `fy`, `fz`, `mx`, `my`, `mz`):
 
