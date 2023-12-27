@@ -190,17 +190,15 @@ int main()
             {
             case JR3_START_SYNC:
                 printf("received JR3 start command (synchronous)\n");
-                controller.setFilter(parseCutOffFrequency(msg_in));
-                controller.startSync();
+                controller.startSync(parseCutOffFrequency(msg_in));
                 sendAcknowledge(can, msg_out_ack, controller);
                 break;
             case JR3_START_ASYNC:
                 printf("received JR3 start command (asynchronous)\n");
-                controller.setFilter(parseCutOffFrequency(msg_in));
                 controller.startAsync([&can, &msg_out_forces, &msg_out_moments](uint16_t * data)
                 {
                     sendData(can, msg_out_forces, msg_out_moments, data);
-                }, parseAsyncPeriod(msg_in, sizeof(uint16_t)));
+                }, parseCutOffFrequency(msg_in), parseAsyncPeriod(msg_in, sizeof(uint16_t)));
                 sendAcknowledge(can, msg_out_ack, controller);
                 break;
             case JR3_STOP:
