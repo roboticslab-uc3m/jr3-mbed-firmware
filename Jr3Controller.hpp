@@ -51,6 +51,7 @@ private:
     fixed_t calibrationCoeffs[36] {}; // value initialization to zero
     fixed_t shared[6] {}; // value initialization to zero
     uint16_t fullScales[6] {}; // value initialization to zero
+    uint16_t frameCounter {0};
     std::chrono::microseconds asyncPeriodUs {0us};
 
     bool sensorStopRequested {false};

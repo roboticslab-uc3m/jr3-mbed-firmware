@@ -29,8 +29,6 @@ enum can_ops : uint8_t
 #endif
 };
 
-using counter_t = uint16_t;
-
 uint16_t parseCutOffFrequency(const mbed::CANMessage & msg, size_t offset = 0)
 {
     if (msg.len >= sizeof(uint16_t) + offset)
@@ -78,19 +76,15 @@ void processGripperCommand(const mbed::CANMessage & msg, Motor & motor)
 
 void sendData(mbed::CAN & can, mbed::CANMessage & msg_forces, mbed::CANMessage & msg_moments, uint16_t * data)
 {
-    static counter_t counter = 0;
-
     memcpy(msg_forces.data, data, 6); // fx, fy, fz
-    memcpy(msg_forces.data + 6, &counter, sizeof(counter));
+    memcpy(msg_forces.data + 6, data + 6, sizeof(uint16_t)); // frame_counter
     can.write(msg_forces);
 
     // there is no need to put a delay between these two writes since the NXP has a triple transmit buffer
 
     memcpy(msg_moments.data, data + 3, 6); // mx, my, mz
-    memcpy(msg_moments.data + 6, &counter, sizeof(counter));
+    memcpy(msg_moments.data + 6, data + 6, sizeof(uint16_t)); // frame_counter
     can.write(msg_moments);
-
-    counter++;
 }
 
 void sendAcknowledge(mbed::CAN & can, mbed::CANMessage & msg, const Jr3Controller & controller)
@@ -128,7 +122,7 @@ int main()
     msg_out_ack.len = 1;
     msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
 
-    msg_out_forces.len = msg_out_moments.len = 6 + sizeof(counter_t);
+    msg_out_forces.len = msg_out_moments.len = 6 + sizeof(uint16_t); // FT data + frame counter
     msg_out_forces.id = (JR3_FORCES << 7) + MBED_CONF_APP_CAN_ID;
     msg_out_moments.id = (JR3_MOMENTS << 7) + MBED_CONF_APP_CAN_ID;
 
@@ -170,7 +164,7 @@ int main()
         printf("JR3 sensor is not connected\n");
     }
 
-    uint16_t data[6]; // helper buffer for misc FT data
+    uint16_t data[7]; // helper buffer for misc FT data (includes frame counter)
 
     while (true)
     {

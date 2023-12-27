@@ -71,7 +71,7 @@ void Jr3Controller::startAsyncThread()
         asyncStopRequested = false;
         mutex.unlock();
 
-         // increased priority, see AccurateWaiter::wait_for
+        // increased priority, see AccurateWaiter::wait_for
         asyncThread = new rtos::Thread(osPriorityAboveNormal);
         asyncThread->start({this, &Jr3Controller::doAsyncWork});
     }
@@ -98,6 +98,7 @@ void Jr3Controller::stopSensorThread()
 
         mutex.lock();
         memset(shared, 0, sizeof(shared));
+        frameCounter = 0;
         mutex.unlock();
     }
 }
@@ -256,6 +257,7 @@ void Jr3Controller::acquireInternal(uint16_t * data) const
 
     mutex.lock();
     memcpy(temp, shared, sizeof(shared));
+    data[6] = frameCounter;
     mutex.unlock();
 
     for (int i = 0; i < 6; i++)
@@ -344,6 +346,7 @@ void Jr3Controller::doSensorWork()
 
         localSmoothingFactor = smoothingFactor;
         localStopRequested = sensorStopRequested;
+        frameCounter++;
         mutex.unlock();
 
         expectedChannel = FORCE_X;
@@ -356,7 +359,7 @@ void Jr3Controller::doAsyncWork()
 {
     printf("starting async thread\n");
 
-    uint16_t data[6];
+    uint16_t data[7]; // fx, fy, fz, mx, my, mz, frame counter
 
     mutex.lock();
     bool localStopRequested = asyncStopRequested;
