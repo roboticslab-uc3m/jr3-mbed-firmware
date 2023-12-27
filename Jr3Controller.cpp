@@ -20,14 +20,15 @@ Jr3Controller::Jr3Controller(mbed::Callback<uint32_t()> cb)
     : readerCallback(cb)
 {}
 
-void Jr3Controller::startSync()
+void Jr3Controller::startSync(uint16_t cutOffFrequency)
 {
     CHECK_STATE();
     stopAsyncThread();
+    setFilter(cutOffFrequency);
     startSensorThread();
 }
 
-void Jr3Controller::startAsync(mbed::Callback<void(uint16_t *)> cb, uint32_t periodUs)
+void Jr3Controller::startAsync(mbed::Callback<void(uint16_t *)> cb, uint16_t cutOffFrequency, uint32_t periodUs)
 {
     CHECK_STATE();
 
@@ -44,6 +45,7 @@ void Jr3Controller::startAsync(mbed::Callback<void(uint16_t *)> cb, uint32_t per
     asyncPeriodUs = std::chrono::microseconds(periodUs);
     mutex.unlock();
 
+    setFilter(cutOffFrequency);
     startSensorThread();
     startAsyncThread();
 }
@@ -57,8 +59,6 @@ void Jr3Controller::startSensorThread()
         mutex.lock();
         sensorStopRequested = false;
         mutex.unlock();
-
-        initialize();
 
         sensorThread = new rtos::Thread(osPriorityNormal);
         sensorThread->start({this, &Jr3Controller::doSensorWork});
@@ -249,6 +249,7 @@ void Jr3Controller::initialize()
 
     printf("\n\ninitialization done\n\n");
 
+    zeroOffsets = true;
     state = READY;
 }
 

@@ -14,8 +14,8 @@ public:
 
     Jr3Controller(mbed::Callback<uint32_t()> cb);
     void initialize();
-    void startSync();
-    void startAsync(mbed::Callback<void(uint16_t *)> cb, uint32_t periodUs);
+    void startSync(uint16_t cutOffFrequency);
+    void startAsync(mbed::Callback<void(uint16_t *)> cb, uint16_t cutOffFrequency, uint32_t periodUs);
     void stop();
     void calibrate();
     void setFilter(uint16_t cutOffFrequency);

@@ -27,7 +27,7 @@ Since the Mbed Online Compiler has been discontinued, development and compilatio
 | moment data         |  0x680  |    out    |          8         | (3x) 2 LSB bytes: Mx, My, Mz (integer, signed)<br>2 MSB bytes: integrity counter                  |
 | gripper PWM         |  0x780  |     in    |          4         | PWM command between -100.0 and 100.0 (float)                                                      |
 
-Bolded incoming commands imply that the Mbed will respond with an acknowledge message (following other generated response messages, if any, as in "get full scales").
+Bolded incoming commands imply that the Mbed will respond with an acknowledge message.
 
 ## Usage
 

@@ -12,8 +12,8 @@ TIME_RANGE = 10 # [s]
 TIME_INTERVAL = 0.01 # [s]
 MAX_SCALE = 16384 # 2^14
 FULL_SCALES = [v / MAX_SCALE for v in [115, 111, 185, 5.6, 5.2, 6.1]]
-OP_FORCES = 0x480
-OP_MOMENTS = 0x500
+OP_FORCES = 0x600
+OP_MOMENTS = 0x680
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--id', type=int, required=True, help='node ID')
