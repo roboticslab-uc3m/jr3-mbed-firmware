@@ -11,22 +11,29 @@
 
 enum can_ops : uint16_t
 {
-    JR3_SYNC        = 0x080,
-    JR3_ACK         = 0x100,
-    JR3_START_SYNC  = 0x180,
-    JR3_START_ASYNC = 0x200,
-    JR3_STOP        = 0x280,
-    JR3_ZERO_OFFS   = 0x300,
-    JR3_SET_FILTER  = 0x380,
-    JR3_GET_FS      = 0x400,
-    JR3_GET_STATE   = 0x480,
-    JR3_RESET       = 0x500,
-    JR3_FORCES      = 0x580,
-    JR3_MOMENTS     = 0x600,
-    JR3_BOOTUP      = 0x700,
+    JR3_SYNC           = 0x080,
+    JR3_ACK            = 0x100,
+    JR3_START_SYNC     = 0x180,
+    JR3_START_ASYNC    = 0x200,
+    JR3_STOP           = 0x280,
+    JR3_ZERO_OFFS      = 0x300,
+    JR3_SET_FILTER     = 0x380,
+    JR3_GET_STATE      = 0x400,
+    JR3_GET_FS_FORCES  = 0x480,
+    JR3_GET_FS_MOMENTS = 0x500,
+    JR3_RESET          = 0x580,
+    JR3_FORCES         = 0x600,
+    JR3_MOMENTS        = 0x680,
+    JR3_BOOTUP         = 0x700,
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
-    GRIPPER_PWM     = 0x780
+    GRIPPER_PWM        = 0x780
 #endif
+};
+
+enum jr3_state : uint8_t
+{
+    JR3_READY = 0x00,
+    JR3_NOT_INITIALIZED = 0x01
 };
 
 uint16_t parseCutOffFrequency(const mbed::CANMessage & msg, size_t offset = 0)
@@ -87,13 +94,16 @@ void sendData(mbed::CAN & can, mbed::CANMessage & msg_forces, mbed::CANMessage &
     can.write(msg_moments);
 }
 
+void sendFullScales(mbed::CAN & can, mbed::CANMessage & msg, const Jr3Controller & controller, uint16_t * data)
+{
+    msg.data[0] = controller.getState() == Jr3Controller::READY ? JR3_READY : JR3_NOT_INITIALIZED;
+    memcpy(msg.data + 1, data, 6); // fsx, fsy, fsz OR msx, msy, msz
+    can.write(msg);
+}
+
 void sendAcknowledge(mbed::CAN & can, mbed::CANMessage & msg, const Jr3Controller & controller)
 {
-    static constexpr uint8_t OK = 0x00;
-    static constexpr uint8_t ERROR = 0x01;
-
-    msg.data[0] = controller.getState() == Jr3Controller::READY ? OK : ERROR;
-
+    msg.data[0] = controller.getState() == Jr3Controller::READY ? JR3_READY : JR3_NOT_INITIALIZED;
     can.write(msg);
 }
 
@@ -114,13 +124,14 @@ int main()
 #endif
 
     mbed::CANMessage msg_in;
-    mbed::CANMessage msg_out_bootup, msg_out_ack, msg_out_forces, msg_out_moments;
+    mbed::CANMessage msg_out_bootup, msg_out_ack, msg_out_ack_long, msg_out_forces, msg_out_moments;
 
     msg_out_bootup.len = 0;
     msg_out_bootup.id = JR3_BOOTUP + MBED_CONF_APP_CAN_ID;
 
     msg_out_ack.len = 1;
-    msg_out_ack.id = JR3_ACK + MBED_CONF_APP_CAN_ID;
+    msg_out_ack_long.len = 6;
+    msg_out_ack.id = msg_out_ack_long.id = JR3_ACK + MBED_CONF_APP_CAN_ID;
 
     msg_out_forces.len = msg_out_moments.len = 6 + sizeof(uint16_t); // FT data + frame counter
     msg_out_forces.id = JR3_FORCES + MBED_CONF_APP_CAN_ID;
@@ -164,7 +175,7 @@ int main()
         printf("JR3 sensor is not connected\n");
     }
 
-    uint16_t data[7]; // helper buffer for misc FT data (includes frame counter)
+    uint16_t data[7]; // helper buffer for misc FT data (includes room for a frame counter)
 
     while (true)
     {
@@ -210,15 +221,19 @@ int main()
                 controller.setFilter(parseCutOffFrequency(msg_in));
                 sendAcknowledge(can, msg_out_ack, controller);
                 break;
-            case JR3_GET_FS:
-                printf("received JR3 get full scales command\n");
-                controller.getFullScales(data);
-                sendData(can, msg_out_forces, msg_out_moments, data);
-                sendAcknowledge(can, msg_out_ack, controller);
-                break;
             case JR3_GET_STATE:
                 printf("received JR3 get state command\n");
                 sendAcknowledge(can, msg_out_ack, controller);
+                break;
+            case JR3_GET_FS_FORCES:
+                printf("received JR3 get full scales (forces) command\n");
+                controller.getFullScales(data);
+                sendFullScales(can, msg_out_ack_long, controller, data);
+                break;
+            case JR3_GET_FS_MOMENTS:
+                printf("received JR3 get full scales (moments) command\n");
+                controller.getFullScales(data);
+                sendFullScales(can, msg_out_ack_long, controller, data + 3);
                 break;
             case JR3_RESET:
                 printf("received JR3 reset command\n");

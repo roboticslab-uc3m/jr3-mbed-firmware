@@ -7,3 +7,5 @@ Atomics
 Motor
 mbed
 mbed-os
+/.vs/
+/.vscode/
