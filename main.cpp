@@ -12,18 +12,18 @@
 enum can_ops : uint16_t
 {
     JR3_SYNC        = 0x080,
-    JR3_BOOTUP      = 0x100,
-    JR3_ACK         = 0x180,
-    JR3_START_SYNC  = 0x200,
-    JR3_START_ASYNC = 0x280,
-    JR3_STOP        = 0x300,
-    JR3_ZERO_OFFS   = 0x380,
-    JR3_SET_FILTER  = 0x400,
-    JR3_GET_FS      = 0x480,
-    JR3_GET_STATE   = 0x500,
-    JR3_RESET       = 0x580,
-    JR3_FORCES      = 0x600,
-    JR3_MOMENTS     = 0x680,
+    JR3_ACK         = 0x100,
+    JR3_START_SYNC  = 0x180,
+    JR3_START_ASYNC = 0x200,
+    JR3_STOP        = 0x280,
+    JR3_ZERO_OFFS   = 0x300,
+    JR3_SET_FILTER  = 0x380,
+    JR3_GET_FS      = 0x400,
+    JR3_GET_STATE   = 0x480,
+    JR3_RESET       = 0x500,
+    JR3_FORCES      = 0x580,
+    JR3_MOMENTS     = 0x600,
+    JR3_BOOTUP      = 0x700,
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
     GRIPPER_PWM     = 0x780
 #endif
