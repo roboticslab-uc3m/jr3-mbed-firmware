@@ -10,22 +10,23 @@ Since the Mbed Online Compiler has been discontinued, development and compilatio
 
 ## CAN protocol
 
-| command             | op code | direction | payload<br>(bytes) | details                                                                                           |
-|---------------------|:-------:|:---------:|:------------------:|---------------------------------------------------------------------------------------------------|
-| sync                |  0x080  |     in    |          0         |                                                                                                   |
-| acknowledge         |  0x100  |    out    |          1         | 0x00: sensor ready<br>0x01: not initialized                                                       |
-| **start sync**      |  0x180  |     in    |          2         | low-pass filter cutoff frequency in 0.01*Hz (integer)<br>(e.g. 1025 = 10.25 Hz)                   |
-| **start async**     |  0x200  |     in    |          6         | 2 LSB bytes: cutoff frequency (as above)<br>4 MSB bytes: period in us (integer)                   |
-| **stop**            |  0x280  |     in    |          0         |                                                                                                   |
-| **zero offsets**    |  0x300  |     in    |          0         |                                                                                                   |
-| **set filter**      |  0x380  |     in    |          2         | cutoff frequency (as above)                                                                       |
-| **get full scales** |  0x400  |     in    |          0         | sends "force data" and "moment data" (see below)<br>with full scales instead of live measurements |
-| **get state**       |  0x480  |     in    |          0         |                                                                                                   |
-| **reset**           |  0x500  |     in    |          0         |                                                                                                   |
-| force data          |  0x580  |    out    |          8         | (3x) 2 LSB bytes: Fx, Fy, Fz (integer, signed)<br>2 MSB bytes: integrity counter                  |
-| moment data         |  0x600  |    out    |          8         | (3x) 2 LSB bytes: Mx, My, Mz (integer, signed)<br>2 MSB bytes: integrity counter                  |
-| bootup              |  0x700  |    out    |          0         |                                                                                                   |
-| gripper PWM         |  0x780  |     in    |          4         | PWM command between -100.0 and 100.0 (float)                                                      |
+| command                          | op code | direction | payload<br>(bytes) | details                                                                                              |
+|----------------------------------|:-------:|:---------:|:------------------:|------------------------------------------------------------------------------------------------------|
+| sync                             |  0x080  |     in    |          0         |                                                                                                      |
+| acknowledge                      |  0x100  |    out    |        1-7         | LSB byte: 0x00 - sensor ready; 0x01 - not initialized<br>6 MSB bytes (optional): see command details |
+| **start sync**                   |  0x180  |     in    |          2         | low-pass filter cutoff frequency in 0.01*Hz (integer)<br>(e.g. 1025 = 10.25 Hz)                      |
+| **start async**                  |  0x200  |     in    |          6         | 2 LSB bytes: cutoff frequency (as above)<br>4 MSB bytes: period in us (integer)                      |
+| **stop**                         |  0x280  |     in    |          0         |                                                                                                      |
+| **zero offsets**                 |  0x300  |     in    |          0         |                                                                                                      |
+| **set filter**                   |  0x380  |     in    |          2         | cutoff frequency (as above)                                                                          |
+| **get state**                    |  0x400  |     in    |          0         |                                                                                                      |
+| **get full scales**<br>(forces)  |  0x480  |     in    |          0         | acknowledge message carries force full scales<br>in the 6 MSB bytes (Fx, Fy, Fz)                     |
+| **get full scales**<br>(moments) |  0x500  |     in    |          0         | acknowledge message carries moment full scales<br>in the 6 MSB bytes (Mx, My, Mz)                    |
+| **reset**                        |  0x580  |     in    |          0         |                                                                                                      |
+| force data                       |  0x600  |    out    |          8         | (3x) 2 LSB bytes: Fx, Fy, Fz (integer, signed)<br>2 MSB bytes: frame counter                         |
+| moment data                      |  0x680  |    out    |          8         | (3x) 2 LSB bytes: Mx, My, Mz (integer, signed)<br>2 MSB bytes: frame counter                         |
+| bootup                           |  0x700  |    out    |          0         |                                                                                                      |
+| gripper PWM                      |  0x780  |     in    |          4         | PWM command between -100.0 and 100.0 (float)                                                         |
 
 Bolded incoming commands imply that the Mbed will respond with an acknowledge message.
 
@@ -38,11 +39,11 @@ The JR3 sensor operates in two modes: synchronous and asynchronous. Both entail 
 - Synchronous ("start sync" command): per the CiA 402 standard (a.k.a. CANopen), a SYNC message is broadcast over the CAN network by a producer node so that consumers act upon (e.g. send sensor data, accept motion commands). As soon as the incoming SYNC message is processed, the Mbed will send the latest force and moment data in return.
 - Asynchronous ("start async" command): an additional thread is spawned to query latest forces and moments at the specified fixed rate (tested at 1 ms).
 
-An initial offset is substracted from the decoupled sensor data. To calibrate the sensor again (i.e. set the latest measurements as the new zero), the "zero offsets" command can be issued at any time.
+The sensor is **not** calibrated by default. Use the "zero offsets" command to capture the current offset and substract it from subsequent filtered results. This command can be issued at any time.
 
 It is highly recommended to enable raw data filtering by specifying the desired cutoff frequency to either start command. This firmware implements a simple first-order low-pass IIR filter, also known as an exponential moving average (see [Wikipedia article](https://w.wiki/7Er6)). Its cutoff frequency can be modified through the "set filter" command.
 
-Outgoing force and moment data requires post-processing on the receiver's side. These signed integer values should be multiplied by the corresponding full scale and divided by a factor of 16384 (=2^14) for forces and 16384\*10 for moments. The resulting values will be expressed in Newtons and Newton*meters, respectively.
+Outgoing force and moment data requires post-processing on the receiver's side. These signed integer values should be multiplied by the corresponding full scale and divided by a factor of 16384 (=2^14) for forces and 16384\*10 for moments. The resulting values will be expressed in Newtons and Newton*meters, respectively. Use the "get full scales" command to query the sensor full scales.
 
 ## Configuration
 
@@ -59,7 +60,7 @@ sudo ip link set can0 up txqueuelen 1000 type can bitrate 1000000
 To send a CAN message, install the [can-utils](https://github.com/linux-can/can-utils) package (`apt install can-utils`) and run:
 
 ```
-cansend can0 281#C80010270000
+cansend can0 201#C80010270000
 ```
 
 This will start an ASYNC publisher on ID 1 with a period of 10 ms (10000 us = 0x2710) and a cutoff frequency of 2 Hz (200 Hz*0.01 = 0x00C8). Use the `candump can0` command on a different terminal to inspect traffic on the CAN bus, including any response from the Mbed.
