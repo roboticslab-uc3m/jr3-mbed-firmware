@@ -13,18 +13,18 @@ Since the Mbed Online Compiler has been discontinued, development and compilatio
 | command             | op code | direction | payload<br>(bytes) | details                                                                                           |
 |---------------------|:-------:|:---------:|:------------------:|---------------------------------------------------------------------------------------------------|
 | sync                |  0x080  |     in    |          0         |                                                                                                   |
-| bootup              |  0x100  |    out    |          0         |                                                                                                   |
-| acknowledge         |  0x180  |    out    |          1         | 0x00: sensor ready<br>0x01: not initialized                                                       |
-| **start sync**      |  0x200  |     in    |          2         | low-pass filter cutoff frequency in 0.01*Hz (integer)<br>(e.g. 1025 = 10.25 Hz)                   |
-| **start async**     |  0x280  |     in    |          6         | 2 LSB bytes: cutoff frequency (as above)<br>4 MSB bytes: period in us (integer)                   |
-| **stop**            |  0x300  |     in    |          0         |                                                                                                   |
-| **zero offsets**    |  0x380  |     in    |          0         |                                                                                                   |
-| **set filter**      |  0x400  |     in    |          2         | cutoff frequency (as above)                                                                       |
-| **get full scales** |  0x480  |     in    |          0         | sends "force data" and "moment data" (see below)<br>with full scales instead of live measurements |
-| **get state**       |  0x500  |     in    |          0         |                                                                                                   |
-| **reset**           |  0x580  |     in    |          0         |                                                                                                   |
-| force data          |  0x600  |    out    |          8         | (3x) 2 LSB bytes: Fx, Fy, Fz (integer, signed)<br>2 MSB bytes: integrity counter                  |
-| moment data         |  0x680  |    out    |          8         | (3x) 2 LSB bytes: Mx, My, Mz (integer, signed)<br>2 MSB bytes: integrity counter                  |
+| acknowledge         |  0x100  |    out    |          1         | 0x00: sensor ready<br>0x01: not initialized                                                       |
+| **start sync**      |  0x180  |     in    |          2         | low-pass filter cutoff frequency in 0.01*Hz (integer)<br>(e.g. 1025 = 10.25 Hz)                   |
+| **start async**     |  0x200  |     in    |          6         | 2 LSB bytes: cutoff frequency (as above)<br>4 MSB bytes: period in us (integer)                   |
+| **stop**            |  0x280  |     in    |          0         |                                                                                                   |
+| **zero offsets**    |  0x300  |     in    |          0         |                                                                                                   |
+| **set filter**      |  0x380  |     in    |          2         | cutoff frequency (as above)                                                                       |
+| **get full scales** |  0x400  |     in    |          0         | sends "force data" and "moment data" (see below)<br>with full scales instead of live measurements |
+| **get state**       |  0x480  |     in    |          0         |                                                                                                   |
+| **reset**           |  0x500  |     in    |          0         |                                                                                                   |
+| force data          |  0x580  |    out    |          8         | (3x) 2 LSB bytes: Fx, Fy, Fz (integer, signed)<br>2 MSB bytes: integrity counter                  |
+| moment data         |  0x600  |    out    |          8         | (3x) 2 LSB bytes: Mx, My, Mz (integer, signed)<br>2 MSB bytes: integrity counter                  |
+| bootup              |  0x700  |    out    |          0         |                                                                                                   |
 | gripper PWM         |  0x780  |     in    |          4         | PWM command between -100.0 and 100.0 (float)                                                      |
 
 Bolded incoming commands imply that the Mbed will respond with an acknowledge message.
