@@ -9,23 +9,23 @@
 
 #include "atomic_bool.h"
 
-enum can_ops : uint8_t
+enum can_ops : uint16_t
 {
-    SYNC = 1,        // 0x080
-    JR3_BOOTUP,      // 0x100
-    JR3_ACK,         // 0x180
-    JR3_START_SYNC,  // 0x200
-    JR3_START_ASYNC, // 0x280
-    JR3_STOP,        // 0x300
-    JR3_ZERO_OFFS,   // 0x380
-    JR3_SET_FILTER,  // 0x400
-    JR3_GET_FS,      // 0x480
-    JR3_GET_STATE,   // 0x500
-    JR3_RESET,       // 0x580
-    JR3_FORCES,      // 0x600
-    JR3_MOMENTS,     // 0x680
+    JR3_SYNC        = 0x080,
+    JR3_BOOTUP      = 0x100,
+    JR3_ACK         = 0x180,
+    JR3_START_SYNC  = 0x200,
+    JR3_START_ASYNC = 0x280,
+    JR3_STOP        = 0x300,
+    JR3_ZERO_OFFS   = 0x380,
+    JR3_SET_FILTER  = 0x400,
+    JR3_GET_FS      = 0x480,
+    JR3_GET_STATE   = 0x500,
+    JR3_RESET       = 0x580,
+    JR3_FORCES      = 0x600,
+    JR3_MOMENTS     = 0x680,
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
-    GRIPPER_PWM = 15 // 0x780
+    GRIPPER_PWM     = 0x780
 #endif
 };
 
@@ -117,14 +117,14 @@ int main()
     mbed::CANMessage msg_out_bootup, msg_out_ack, msg_out_forces, msg_out_moments;
 
     msg_out_bootup.len = 0;
-    msg_out_bootup.id = (JR3_BOOTUP << 7) + MBED_CONF_APP_CAN_ID;
+    msg_out_bootup.id = JR3_BOOTUP + MBED_CONF_APP_CAN_ID;
 
     msg_out_ack.len = 1;
-    msg_out_ack.id = (JR3_ACK << 7) + MBED_CONF_APP_CAN_ID;
+    msg_out_ack.id = JR3_ACK + MBED_CONF_APP_CAN_ID;
 
     msg_out_forces.len = msg_out_moments.len = 6 + sizeof(uint16_t); // FT data + frame counter
-    msg_out_forces.id = (JR3_FORCES << 7) + MBED_CONF_APP_CAN_ID;
-    msg_out_moments.id = (JR3_MOMENTS << 7) + MBED_CONF_APP_CAN_ID;
+    msg_out_forces.id = JR3_FORCES + MBED_CONF_APP_CAN_ID;
+    msg_out_moments.id = JR3_MOMENTS + MBED_CONF_APP_CAN_ID;
 
     using Jr3Reader = Jr3<MBED_CONF_APP_JR3_PORT, MBED_CONF_APP_JR3_CLOCK_PIN, MBED_CONF_APP_JR3_DATA_PIN>;
     Jr3Reader jr3;
@@ -142,7 +142,7 @@ int main()
 
         if (can.read(msg))
         {
-            if (msg.id == SYNC << 7)
+            if (msg.id == JR3_SYNC)
             {
                 syncReceived = true;
             }
@@ -180,7 +180,7 @@ int main()
 
         while (queue.pop(msg_in))
         {
-            switch ((msg_in.id & 0x0780) >> 7)
+            switch (msg_in.id & 0x0780)
             {
             case JR3_START_SYNC:
                 printf("received JR3 start command (synchronous)\n");
@@ -231,13 +231,13 @@ int main()
                 break;
 #endif
             default:
-                printf("unsupported command: %d\n", (msg_in.id & 0x0780) >> 7);
+                printf("unsupported command: 0x%03x\n", msg_in.id & 0x0780);
                 break;
             }
         }
 
 #if MBED_CONF_APP_CAN2_ENABLE
-        if (can2.read(msg_in) && msg_in.id == (GRIPPER_PWM << 7) + MBED_CONF_APP_CAN2_ID)
+        if (can2.read(msg_in) && msg_in.id == GRIPPER_PWM + MBED_CONF_APP_CAN2_ID)
         {
             processGripperCommand(msg_in, motor);
         }
