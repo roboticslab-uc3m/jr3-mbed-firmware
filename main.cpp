@@ -129,11 +129,11 @@ int main()
     msg_out_bootup.len = 0;
     msg_out_bootup.id = JR3_BOOTUP + MBED_CONF_APP_CAN_ID;
 
-    msg_out_ack.len = 1;
-    msg_out_ack_long.len = 6;
+    msg_out_ack.len = 1; // state
+    msg_out_ack_long.len = 7; // state (1) + full scales (6)
     msg_out_ack.id = msg_out_ack_long.id = JR3_ACK + MBED_CONF_APP_CAN_ID;
 
-    msg_out_forces.len = msg_out_moments.len = 6 + sizeof(uint16_t); // FT data + frame counter
+    msg_out_forces.len = msg_out_moments.len = 8; // FT data (6) + frame counter (2)
     msg_out_forces.id = JR3_FORCES + MBED_CONF_APP_CAN_ID;
     msg_out_moments.id = JR3_MOMENTS + MBED_CONF_APP_CAN_ID;
 
