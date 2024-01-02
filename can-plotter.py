@@ -1,14 +1,14 @@
 import argparse
 import collections
 import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
 import numpy as np
 import re
 import signal
 import sys
 import threading
+import time
 
-TIME_RANGE = 10 # [s]
+STEPS = 100
 TIME_INTERVAL = 0.01 # [s]
 MAX_SCALE = 16384 # 2^14
 FULL_SCALES = [v / MAX_SCALE for v in [115, 111, 185, 5.6, 5.2, 6.1]] # TEO's right arm
@@ -19,7 +19,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--id', type=int, required=True, help='node ID')
 args = parser.parse_args()
 
-t = np.arange(0, TIME_RANGE, TIME_INTERVAL)
+t = np.arange(0, STEPS)
 values = [collections.deque(np.zeros(t.shape)) for i in range(6)]
 last_value = [0 for i in range(6)]
 limits = [(0, 0) for i in range(2)]
@@ -33,62 +33,93 @@ def handler(signum, frame):
 signal.signal(signal.SIGINT, handler)
 signal.signal(signal.SIGTERM, handler)
 
+fig, axes = plt.subplots(1, 2)
+
+axes[0].set_title('forces')
+axes[1].set_title('moments')
+
+(ln_fx,) = axes[0].plot(values[0], label='x', color='red', animated=True)
+(ln_fy,) = axes[0].plot(values[1], label='y', color='green', animated=True)
+(ln_fz,) = axes[0].plot(values[2], label='z', color='blue', animated=True)
+(ln_mx,) = axes[1].plot(values[3], label='x', color='red', animated=True)
+(ln_my,) = axes[1].plot(values[4], label='y', color='green', animated=True)
+(ln_mz,) = axes[1].plot(values[5], label='z', color='blue', animated=True)
+
+plt.show(block=False)
+plt.pause(0.1)
+
+bg = fig.canvas.copy_from_bbox(fig.bbox)
+
+axes[0].draw_artist(ln_fx)
+axes[0].draw_artist(ln_fy)
+axes[0].draw_artist(ln_fz)
+axes[1].draw_artist(ln_mx)
+axes[1].draw_artist(ln_my)
+axes[1].draw_artist(ln_mz)
+
+# https://matplotlib.org/stable/users/explain/animations/blitting.html + https://stackoverflow.com/a/15724978
+fig.canvas.blit(fig.bbox)
+
+def do_draw():
+    global should_stop
+
+    while not should_stop:
+        for i in range(len(values)):
+            values[i].popleft()
+            values[i].append(last_value[i])
+
+        fig.canvas.restore_region(bg)
+
+        ln_fx.set_ydata(values[0])
+        ln_fy.set_ydata(values[1])
+        ln_fz.set_ydata(values[2])
+        ln_mx.set_ydata(values[3])
+        ln_my.set_ydata(values[4])
+        ln_mz.set_ydata(values[5])
+
+        axes[0].draw_artist(ln_fx)
+        axes[0].draw_artist(ln_fy)
+        axes[0].draw_artist(ln_fz)
+        axes[1].draw_artist(ln_mx)
+        axes[1].draw_artist(ln_my)
+        axes[1].draw_artist(ln_mz)
+
+        axes[0].set_ylim(limits[0][0], limits[0][1])
+        axes[1].set_ylim(limits[1][0], limits[1][1])
+
+        fig.canvas.blit(fig.bbox)
+        fig.canvas.flush_events()
+
+        # plt.pause(TIME_INTERVAL)
+        time.sleep(TIME_INTERVAL)
+
+thread = threading.Thread(target=do_draw)
+thread.start()
+
 def hex_to_signed_int(data):
     hex = int(data[1] + data[0], 16)
     return hex - 2**16 if hex > 2**15 - 1 else hex
 
-def do_read():
-    for line in sys.stdin:
-        if should_stop:
-            break
+for line in sys.stdin:
+    if should_stop:
+        break
 
-        if (m := re.match('^(\w+)\s+(\w+)\s+\[(\d)\]((?:\s+\w{2}){0,8})$', line.strip())) is not None:
-            if not int(m.group(3), 10) == 8: # dlc
-                continue
+    if (m := re.match('^(\w+)\s+(\w+)\s+\[(\d)\]((?:\s+\w{2}){0,8})$', line.strip())) is not None:
+        if not int(m.group(3), 10) == 8: # dlc
+            continue
 
-            op = int(m.group(2), 16) - args.id
-            data = m.group(4).strip().split(' ')
+        op = int(m.group(2), 16) - args.id
+        data = m.group(4).strip().split(' ')
 
-            if op == OP_FORCES:
-                last_value[0] = hex_to_signed_int(data[0:2]) * FULL_SCALES[0]
-                last_value[1] = hex_to_signed_int(data[2:4]) * FULL_SCALES[1]
-                last_value[2] = hex_to_signed_int(data[4:6]) * FULL_SCALES[2]
-            elif op == OP_MOMENTS:
-                last_value[3] = hex_to_signed_int(data[0:2]) * FULL_SCALES[3]
-                last_value[4] = hex_to_signed_int(data[2:4]) * FULL_SCALES[4]
-                last_value[5] = hex_to_signed_int(data[4:6]) * FULL_SCALES[5]
-            else:
-                continue
-
+        if op == OP_FORCES:
+            last_value[0] = hex_to_signed_int(data[0:2]) * FULL_SCALES[0]
+            last_value[1] = hex_to_signed_int(data[2:4]) * FULL_SCALES[1]
+            last_value[2] = hex_to_signed_int(data[4:6]) * FULL_SCALES[2]
             limits[0] = (min([limits[0][0]] + last_value[0:3]), max([limits[0][1]] + last_value[0:3]))
+        elif op == OP_MOMENTS:
+            last_value[3] = hex_to_signed_int(data[0:2]) * FULL_SCALES[3]
+            last_value[4] = hex_to_signed_int(data[2:4]) * FULL_SCALES[4]
+            last_value[5] = hex_to_signed_int(data[4:6]) * FULL_SCALES[5]
             limits[1] = (min([limits[1][0]] + last_value[3:6]), max([limits[1][1]] + last_value[3:6]))
-
-fig, axes = plt.subplots(1, 2)
-
-# TODO: https://matplotlib.org/stable/users/explain/animations/blitting.html
-
-def do_draw(i):
-    # see also (might boost performance): https://stackoverflow.com/a/15724978
-    for i in range(len(values)):
-        values[i].popleft()
-        values[i].append(last_value[i])
-
-    for i, ax in enumerate(axes):
-        ax.cla()
-
-        for j, v in enumerate([('x', 'red'), ('y', 'green'), ('z', 'blue')]):
-            ax.plot(values[j + (3 * i)], label=v[0], color=v[1])
-
-        for j in range(3):
-            ax.scatter(len(values[j + (3 * i)]) - 1, values[j + (3 * i)][-1])
-
-        ax.set_ylim(limits[i][0], limits[i][1])
-
-    axes[0].set_title('forces')
-    axes[1].set_title('moments')
-
-ani = FuncAnimation(fig, do_draw, interval=TIME_INTERVAL * 1000)
-thread = threading.Thread(target=do_read)
-
-thread.start()
-plt.show()
+        else:
+            continue
