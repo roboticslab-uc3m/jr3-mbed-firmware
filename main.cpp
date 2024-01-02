@@ -1,4 +1,5 @@
 #include "mbed.h"
+#include "atomic"
 
 #include "Jr3.hpp"
 #include "Jr3Controller.hpp"
@@ -6,8 +7,6 @@
 #if MBED_CONF_APP_CAN_USE_GRIPPER || MBED_CONF_APP_CAN2_ENABLE
 # include "Motor.h"
 #endif
-
-#include "atomic_bool.h"
 
 enum can_ops : uint16_t
 {
@@ -146,9 +145,9 @@ int main()
 #endif
 
     mbed::CircularBuffer<mbed::CANMessage, 32> queue;
-    AtomicBool syncReceived = false;
+    std::atomic_bool syncReceived {false};
 
-    can.attach([&can, &syncReceived, &queue]() {
+    can.attach([&can, &syncReceived, &queue] {
         mbed::CANMessage msg;
 
         if (can.read(msg))
