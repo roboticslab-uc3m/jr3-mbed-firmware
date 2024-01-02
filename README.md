@@ -71,6 +71,14 @@ A helper Python script is provided for visual inspection of filtered data, [can-
 candump can0 | python3 can-plotter.py --id 1
 ```
 
+## Dependencies
+
+This project depends on the following libraries developed and kindly shared by other MBED users. Their code has been embedded into this repository for convenience.
+
+- <https://os.mbed.com/users/simon/code/Motor/>
+- <https://os.mbed.com/users/MultipleMonomials/code/AccurateWaiter/>
+- <https://os.mbed.com/users/sravet/code/fixedpoint/>
+
 ## See also
 
 - Alberto López Esteban, *Diseño y desarrollo de un módulo de conexión a CANopen de un sensor comercial fuerza/par*, bachelor's thesis, Universidad Carlos III de Madrid, 2011
