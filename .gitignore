@@ -3,8 +3,6 @@ BUILD
 compile_commands.json
 .clangd
 .cache
-Atomics
-Motor
 mbed
 mbed-os
 /.vs/
