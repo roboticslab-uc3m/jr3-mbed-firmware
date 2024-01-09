@@ -1,12 +1,12 @@
 # JR3 Mbed firmware
 
-An MBED 2 application that performs data acquisition from a JR3 force-torque sensor and streams it through a CAN channel.
+An Arm Mbed OS 6 application that performs data acquisition from a JR3 force-torque sensor and streams it through a CAN channel.
 
-Incidentally, support was added for sending simple PWM commands to a Lacquey fetch hand through a secondary optional CAN channel.
+Incidentally, support was added for sending simple PWM commands to a Lacquey fetch gripper through a secondary optional CAN channel.
 
 ## Installation
 
-Since the Mbed Online Compiler has been discontinued, development and compilation should be carried out at https://studio.keil.arm.com/. Make sure you select "mbed LPC1768" as the compilation target. Once build, plug in the MBED to a USB port of your PC and drag-and-drop the downloaded .bin file into it.
+Since the Mbed Online Compiler has been discontinued, development and compilation should be carried out at <https://studio.keil.arm.com/>. Make sure you select "mbed LPC1768" as the compilation target. Once built, plug in the Mbed to a USB port of your PC and drag-and-drop the downloaded .bin file into it.
 
 ## CAN protocol
 
