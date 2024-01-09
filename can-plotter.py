@@ -36,26 +36,25 @@ signal.signal(signal.SIGTERM, handler)
 fig, axes = plt.subplots(1, 2)
 
 axes[0].set_title('forces')
-axes[1].set_title('moments')
+axes[0].set_animated(True)
 
-(ln_fx,) = axes[0].plot(values[0], label='x', color='red', animated=True)
-(ln_fy,) = axes[0].plot(values[1], label='y', color='green', animated=True)
-(ln_fz,) = axes[0].plot(values[2], label='z', color='blue', animated=True)
-(ln_mx,) = axes[1].plot(values[3], label='x', color='red', animated=True)
-(ln_my,) = axes[1].plot(values[4], label='y', color='green', animated=True)
-(ln_mz,) = axes[1].plot(values[5], label='z', color='blue', animated=True)
+axes[1].set_title('moments')
+axes[1].set_animated(True)
+
+(ln_fx,) = axes[0].plot(values[0], label='x', color='red')
+(ln_fy,) = axes[0].plot(values[1], label='y', color='green')
+(ln_fz,) = axes[0].plot(values[2], label='z', color='blue')
+(ln_mx,) = axes[1].plot(values[3], label='x', color='red')
+(ln_my,) = axes[1].plot(values[4], label='y', color='green')
+(ln_mz,) = axes[1].plot(values[5], label='z', color='blue')
 
 plt.show(block=False)
 plt.pause(0.1)
 
 bg = fig.canvas.copy_from_bbox(fig.bbox)
 
-axes[0].draw_artist(ln_fx)
-axes[0].draw_artist(ln_fy)
-axes[0].draw_artist(ln_fz)
-axes[1].draw_artist(ln_mx)
-axes[1].draw_artist(ln_my)
-axes[1].draw_artist(ln_mz)
+fig.draw_artist(axes[0])
+fig.draw_artist(axes[1])
 
 # https://matplotlib.org/stable/users/explain/animations/blitting.html + https://stackoverflow.com/a/15724978
 fig.canvas.blit(fig.bbox)
@@ -77,20 +76,15 @@ def do_draw():
         ln_my.set_ydata(values[4])
         ln_mz.set_ydata(values[5])
 
-        axes[0].draw_artist(ln_fx)
-        axes[0].draw_artist(ln_fy)
-        axes[0].draw_artist(ln_fz)
-        axes[1].draw_artist(ln_mx)
-        axes[1].draw_artist(ln_my)
-        axes[1].draw_artist(ln_mz)
-
         axes[0].set_ylim(limits[0][0], limits[0][1])
         axes[1].set_ylim(limits[1][0], limits[1][1])
+
+        fig.draw_artist(axes[0])
+        fig.draw_artist(axes[1])
 
         fig.canvas.blit(fig.bbox)
         fig.canvas.flush_events()
 
-        # plt.pause(TIME_INTERVAL)
         time.sleep(TIME_INTERVAL)
 
 thread = threading.Thread(target=do_draw)
