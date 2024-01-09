@@ -49,7 +49,7 @@ Outgoing force and moment data requires post-processing on the receiver's side. 
 
 See [mbed-app.json](mbed_app.json) for a list of configurable parameters and their description. The project should be recompiled after any changes to this file.
 
-## Extra tools
+## Additional tools
 
 Most Linux kernels should support [SocketCAN](https://www.kernel.org/doc/html/next/networking/can.html). In order to create a network interface for a CAN channel with a baudrate of 1 Mbps, run the following command:
 
@@ -63,12 +63,12 @@ To send a CAN message, install the [can-utils](https://github.com/linux-can/can-
 cansend can0 201#C80010270000
 ```
 
-This will start an ASYNC publisher on ID 1 with a period of 10 ms (10000 us = 0x2710) and a cutoff frequency of 2 Hz (200 Hz*0.01 = 0x00C8). Use the `candump can0` command on a different terminal to inspect traffic on the CAN bus, including any response from the Mbed.
+This will start an ASYNC publisher on ID 1 with a period of 10 ms (10000 us = 0x2710) and a cutoff frequency of 2 Hz (200 Hz*0.01 = 0x00C8). Use the `candump can0` command on a new terminal to inspect live traffic on the CAN bus, including any response from the Mbed.
 
-A helper Python script is provided for visual inspection of filtered data, [can-plotter.py](can-plotter.py). Example usage (channels: `fx`, `fy`, `fz`, `mx`, `my`, `mz`):
+A helper Python script is provided for visual inspection of filtered data, [can-plotter.py](can-plotter.py). Example usage:
 
 ```
-candump can0 | python3 can-plotter.py --id 1 --channel fz
+candump can0 | python3 can-plotter.py --id 1
 ```
 
 ## See also
@@ -76,5 +76,5 @@ candump can0 | python3 can-plotter.py --id 1 --channel fz
 - Alberto López Esteban, *Diseño y desarrollo de un módulo de conexión a CANopen de un sensor comercial fuerza/par*, bachelor's thesis, Universidad Carlos III de Madrid, 2011
 - Carlos de la Hoz Najarro, *Puesta en marcha del sensor fuerza/par JR3*, bachelor's thesis, Universidad Carlos III de Madrid, 2011
 - Javier Berrocal, *Design and implementation of a data acquisition system for force/torque sensors*, master's thesis, Universidad Carlos III de Madrid, 2019
-- https://github.com/roboticslab-uc3m/yarp-devices/issues/263
+- <https://github.com/roboticslab-uc3m/yarp-devices/issues/263>
 - https://github.com/roboticslab-uc3m/jr3pci-linux/
