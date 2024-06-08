@@ -79,7 +79,7 @@ If you found this project useful, please consider citing the following work:
 
 ```bibtex
 @inproceedings{lukawski2024srbv,
-    author={Łukawski, Bartek and Rodríguez-Sanz, Alberto and Victores, Juan G. and Balaguer, Carlos},
+    author={{\L}ukawski, Bartek and Rodríguez-Sanz, Alberto and Victores, Juan G. and Balaguer, Carlos},
     title={{An open-source implementation of a force-torque sensor data acquisition device for the humanoid robot TEO}},
     booktitle={Actas del Simposio de Robótica, Bioingeniería y Visión por Computador},
     year={2024},
