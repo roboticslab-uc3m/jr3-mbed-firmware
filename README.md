@@ -71,6 +71,24 @@ A helper Python script is provided for visual inspection of filtered data, [can-
 candump can0 | python3 can-plotter.py --id 1
 ```
 
+## Citation
+
+If you found this project useful, please consider citing the following work:
+
+Łukawski, B., Rodríguez-Sanz, A., Victores, J., & Balaguer, C. (2024). An open-source implementation of a force-torque sensor data acquisition device for the humanoid robot TEO. In Actas del Simposio de Robótica, Bioingeniería y Visión por Computador (pp. 79–84). Universidad de Extremadura.
+
+```bibtex
+@inproceedings{lukawski2024srbv,
+    author={Łukawski, Bartek and Rodríguez-Sanz, Alberto and Victores, Juan G. and Balaguer, Carlos},
+    title={{An open-source implementation of a force-torque sensor data acquisition device for the humanoid robot TEO}},
+    booktitle={Actas del Simposio de Robótica, Bioingeniería y Visión por Computador},
+    year={2024},
+    pages={79--84},
+    publisher={Universidad de Extremadura},
+    url={http://hdl.handle.net/10662/21260},
+}
+```
+
 ## See also
 
 - Alberto López Esteban, *Diseño y desarrollo de un módulo de conexión a CANopen de un sensor comercial fuerza/par*, bachelor's thesis, Universidad Carlos III de Madrid, 2011
