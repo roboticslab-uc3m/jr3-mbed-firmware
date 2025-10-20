@@ -30,9 +30,7 @@ preferred-citation:
   year: 2024
   pages: '79--84'
   publisher: 'Universidad de Extremadura'
-  identifiers:
-    - type: other
-      value: 'http://hdl.handle.net/10662/21260'
+  url: 'http://hdl.handle.net/10662/21260'
   abstract: >-
     Multi-axis force-torque sensors extend the capabilities of
     a humanoid robot to perceive its physical environment and
