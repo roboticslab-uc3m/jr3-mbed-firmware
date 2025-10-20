@@ -13,7 +13,8 @@ license: 'LGPL-2.1'
 preferred-citation:
   type: conference-paper
   title: 'An open-source implementation of a force-torque sensor data acquisition device for the humanoid robot TEO'
-  booktitle: 'Actas del Simposio de Robótica, Bioingeniería y Visión por Computador'
+  collection-title: 'Actas del Simposio de Robótica, Bioingeniería y Visión por Computador'
+  collection-type: 'proceedings'
   authors:
     - given-names: Bartek
       family-names: Łukawski
