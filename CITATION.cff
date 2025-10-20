@@ -1,0 +1,56 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: jr3-mbed-firmware
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+url: 'https://github.com/roboticslab-uc3m/jr3-mbed-firmware'
+license: 'LGPL-2.1'
+preferred-citation:
+  type: conference-paper
+  title: 'An open-source implementation of a force-torque sensor data acquisition device for the humanoid robot TEO'
+  booktitle: 'Actas del Simposio de Robótica, Bioingeniería y Visión por Computador'
+  authors:
+    - given-names: Bartek
+      family-names: Łukawski
+      orcid: 'https://orcid.org/0000-0002-1052-3345'
+    - given-names: Alberto
+      family-names: Rodríguez-Sanz
+      orcid: 'https://orcid.org/0009-0009-6511-4408'
+    - given-names: Juan G.
+      family-names: Victores
+      orcid: 'https://orcid.org/0000-0002-3080-3467'
+    - given-names: Carlos
+      family-names: Balaguer
+      orcid: 'https://orcid.org/0000-0003-4864-4625'
+  year: 2024
+  pages: '79--84'
+  publisher: 'Universidad de Extremadura'
+  identifiers:
+    - type: other
+      value: 'http://hdl.handle.net/10662/21260'
+  abstract: >-
+    Multi-axis force-torque sensors extend the capabilities of
+    a humanoid robot to perceive its physical environment and
+    interact with it in high-level tasks. Ready-to-use
+    commercial solutions exist which provide the hardware
+    (sensor) along with a proprietary software layer for
+    robotic applications. To overcome a set of drawbacks of
+    this paradigm on the humanoid robot TEO, a free and
+    open-source firmware has been developed to perform sensor
+    data acquisition and treatment on a low-cost embedded
+    device. The implementation is flexible enough to replicate
+    and add more functionalities over the previous
+    closed-source solution. The integration of the sensor and
+    its new software components is described, and validated
+    against experiments on the real hardware using a newly
+    developed manual trajectory teaching app for a robotic
+  arm.
+keywords:
+  - Robotics
+  - Humanoid robot
+  - Force-torque sensor
+  - Software architectures
+license: CC-BY-NC-SA-4.0
