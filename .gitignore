@@ -3,9 +3,11 @@ BUILD
 compile_commands.json
 .clangd
 .cache
+AccurateWaiter
 Atomics
-Motor
+fixedpoint
 mbed
 mbed-os
+Motor
 /.vs/
 /.vscode/
