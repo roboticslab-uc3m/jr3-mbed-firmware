@@ -37,7 +37,7 @@ void Jr3Controller::startAsync(mbed::Callback<void(uint16_t *)> cb, uint16_t cut
         asyncCallback = cb;
     }
 
-    printf("using a period of %d us\n", periodUs);
+    printf("using a period of %lu us\n", periodUs);
 
     mutex.lock();
     asyncPeriodUs = std::chrono::microseconds(periodUs);
@@ -95,7 +95,7 @@ void Jr3Controller::stopSensorThread()
         sensorThread = nullptr;
 
         mutex.lock();
-        memset(shared, 0, sizeof(shared));
+        memset((void*)shared, 0, sizeof(shared));
         frameCounter = 0;
         mutex.unlock();
     }
@@ -273,11 +273,11 @@ void Jr3Controller::doSensorWork()
 
     fixed_t raw[6], offset[6], decoupled[6], filtered[6], normalized[6];
 
-    memset(raw, 0, sizeof(raw));
-    memset(offset, 0, sizeof(offset));
-    memset(decoupled, 0, sizeof(decoupled));
-    memset(filtered, 0, sizeof(filtered));
-    memset(normalized, 0, sizeof(normalized));
+    memset((void*)raw, 0, sizeof(raw));
+    memset((void*)offset, 0, sizeof(offset));
+    memset((void*)decoupled, 0, sizeof(decoupled));
+    memset((void*)filtered, 0, sizeof(filtered));
+    memset((void*)normalized, 0, sizeof(normalized));
 
     mutex.lock();
     fixed_t localSmoothingFactor = smoothingFactor;
@@ -334,7 +334,7 @@ void Jr3Controller::doSensorWork()
         if (zeroOffsets)
         {
             memcpy(offset, filtered, sizeof(filtered));
-            memset(shared, 0, sizeof(shared));
+            memset((void*)shared, 0, sizeof(shared));
             zeroOffsets = false;
         }
         else
