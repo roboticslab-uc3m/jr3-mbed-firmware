@@ -1,7 +1,6 @@
 *.cpp text
+*.h text
 *.hpp text
-*.json text
-*.lib text
 *.md text
-*.py text
 *.txt text
+*.cff text

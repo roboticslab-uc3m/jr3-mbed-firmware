@@ -2,7 +2,7 @@
 #define __UTILS_HPP__
 
 #include "cstdint"
-#include "fixed_class.h"
+#include "fixedpoint/fixed_class.h"
 
 constexpr int JR3_PRECISION = 15;
 constexpr int FIXED_PRECISION = 30; // pick lower values if saturation occurs

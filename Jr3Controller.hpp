@@ -3,7 +3,7 @@
 
 #include "mbed.h"
 #include "chrono"
-#include "AccurateWaiter.h"
+#include "AccurateWaiter/AccurateWaiter.h"
 #include "utils.hpp"
 
 class Jr3Controller

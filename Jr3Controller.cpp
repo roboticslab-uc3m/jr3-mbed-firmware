@@ -5,8 +5,6 @@
 
 #define CHECK_STATE() do { if (state != READY) { printf("not in ready state\n"); return; } } while (0);
 
-constexpr float M_PI = 3.14159265358979323846f;
-
 #if DBG
 namespace
 {
