@@ -1,6 +1,6 @@
 # JR3 Mbed firmware
 
-An Arm Mbed OS library that performs data acquisition from a JR3 force-torque sensor. This repository covers the JR3-Mbed communication layer. For the interface layer with an external PC, refer to [jr3-mbed-firmware-usb](https://github.com/roboticslab-uc3m/jr3-mbed-firmware-usb) for USB and [jr3-mbed-firmware-can](https://github.com/roboticslab-uc3m/jr3-mbed-firmware-can) for CAN.
+An Arm Mbed OS library that performs data acquisition from a JR3 force-torque sensor. This repository covers the JR3-Mbed communication layer. For the interface layer with an external PC, refer to [jr3-mbed-firmware-uart](https://github.com/roboticslab-uc3m/jr3-mbed-firmware-uart) for UART and [jr3-mbed-firmware-can](https://github.com/roboticslab-uc3m/jr3-mbed-firmware-can) for CAN.
 
 ## Usage
 
@@ -49,5 +49,5 @@ This project depends on the following libraries developed and kindly shared by o
 - Javier Berrocal, *Design and implementation of a data acquisition system for force/torque sensors*, master's thesis, Universidad Carlos III de Madrid, 2019
 - [roboticslab-uc3m/yarp-devices#263](https://github.com/roboticslab-uc3m/yarp-devices/issues/263)
 - [roboticslab-uc3m/jr3-mbed-firmware-can](https://github.com/roboticslab-uc3m/jr3-mbed-firmware-can)
-- [roboticslab-uc3m/jr3-mbed-firmware-usb](https://github.com/roboticslab-uc3m/jr3-mbed-firmware-usb)
+- [roboticslab-uc3m/jr3-mbed-firmware-uart](https://github.com/roboticslab-uc3m/jr3-mbed-firmware-uart)
 - [roboticslab-uc3m/jr3pci-linux](https://github.com/roboticslab-uc3m/jr3pci-linux)
