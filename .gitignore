@@ -7,3 +7,4 @@ mbed
 mbed-os
 /.vs/
 /.vscode/
+*.pyc
