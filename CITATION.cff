@@ -49,9 +49,9 @@ preferred-citation:
     against experiments on the real hardware using a newly
     developed manual trajectory teaching app for a robotic
     arm.
-keywords:
-  - Robotics
-  - Humanoid robot
-  - Force-torque sensor
-  - Software architectures
-license: CC-BY-NC-SA-4.0
+  keywords:
+    - Robotics
+    - Humanoid robot
+    - Force-torque sensor
+    - Software architectures
+  license: CC-BY-NC-SA-4.0
